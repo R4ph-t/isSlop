@@ -153,5 +153,18 @@ console.log('7. Simon Willison cliché samples');
   assert(ids('Come sit with us at lunch.').length === 0, 'sit with us is not sit-with');
 }
 
+// 8. Search Engine Watch examples
+console.log('8. Search Engine Watch examples');
+{
+  function ids(text) {
+    return engine.scanText(text).matches.map((m) => m.rule.id);
+  }
+  assert(ids("Let's delve into the fascinating world of SEO.").some((id) => id === 'lets-dive' || id === 'landscape-opener'), 'fascinating world / let’s delve');
+  assert(ids('While the technology offers benefits, it also presents challenges.').includes('synthetic-balance'), 'synthetic-balance');
+  assert(ids('Despite these challenges, the future remains promising.').includes('despite-challenges'), 'sunny-fog future remains promising');
+  assert(ids('\nEfficiency: faster deploys\nScalability: more users').includes('bold-label-list'), 'bold-label list');
+  assert(ids('Revenue grew [Insert statistic] last year.').includes('prompt-debris'), 'prompt placeholder');
+}
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);

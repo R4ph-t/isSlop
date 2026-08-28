@@ -36,6 +36,7 @@ The original catalog was the build spec. Rules now also draw from:
 - [Pangram, 9 Signs of AI Writing](https://www.pangram.com/signs-of-ai-writing) — contrast patterns ~3× human baseline
 - [Simon Willison, LLM cliché highlighter](https://github.com/simonw/tools/blob/main/llm-cliche-highlighter.html) — structural chains (`no X, no Y`), “don’t VERB it”, echoing sentences, anaphora
 - [slopdetector.org AI words list](https://slopdetector.org/blog/ai-words-list)
+- [Search Engine Watch, 30 examples of AI slop](https://searchenginewatch.com/what-is-ai-slop/) — synthetic balance, placeholder debris, bold-label lists
 
 These are **tells**, not proof of origin. Humans write some of them; density is the product.
 

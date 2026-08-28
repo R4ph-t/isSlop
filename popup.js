@@ -26,11 +26,11 @@ async function activeTab() {
 
 async function inject(tabId) {
   try {
-    await chrome.scripting.insertCSS({ target: { tabId }, files: ['highlight.css'] });
+    await chrome.scripting.removeCSS({ target: { tabId }, files: ['highlight.css'] });
   } catch (err) {
-    const msg = String(err && err.message ? err.message : err);
-    if (!/duplicate/i.test(msg)) throw err;
+    /* nothing injected yet */
   }
+  await chrome.scripting.insertCSS({ target: { tabId }, files: ['highlight.css'] });
   await chrome.scripting.executeScript({
     target: { tabId },
     files: ['rules.js', 'engine.js', 'content.js']

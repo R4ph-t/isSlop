@@ -11,6 +11,8 @@
 // - slopdetector.org AI words list / slop taxonomy (phrase-level tells)
 // - Simon Willison, LLM cliché highlighter (structural chains, echoes, tics)
 //   https://github.com/simonw/tools/blob/main/llm-cliche-highlighter.html
+// - Radu Tyrsina, Search Engine Watch, “What is AI slop? 30 examples”
+//   https://searchenginewatch.com/what-is-ai-slop/
 
 const CHAIN_BODY = String.raw`[^,.;:!?\n\u2013\u2014\u2026]*`;
 const CHAIN_SEP = String.raw`(?:\s*,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+|\s*[;&\u2013\u2014]\s*(?:and\s+|or\s+)?|\s+-{1,2}\s+)`;
@@ -131,7 +133,7 @@ const SLOP_RULES = [
     name: 'Landscape/world-of opener',
     tier: 3,
     category: 'Throat-clearing',
-    re: /\bin (today'?s|the) (fast-paced|ever-changing|ever-evolving|rapidly (changing|evolving)|digital|modern) (world|age|landscape|era|environment)\b|\bin the (world|age|realm|era) of\b|\bin a world where\b/gi,
+    re: /\bin (today'?s|the) (fast-paced|ever-changing|ever-evolving|rapidly (changing|evolving)|digital|modern) (world|age|landscape|era|environment)\b|\bin the (world|age|realm|era) of\b|\bin a world where\b|\bthe (fascinating )?world of\b|\bevolving landscape\b|\bthe realm of\b/gi,
     why: '"In today\'s fast-paced world..." / "in a world where..." is the canonical AI intro. Says nothing.'
   },
   {
@@ -195,7 +197,7 @@ const SLOP_RULES = [
     name: 'Dive-in framing',
     tier: 3,
     category: 'Throat-clearing',
-    re: /\blet'?s (dive (in|into)|unpack|explore)\b|\bpicture this\b|\bever wonder(?:ed)?\b|\bbuckle up\b|\bwithout further ado\b|\bin this (article|post|guide),? (we'?ll|we will|i'?ll|i will)\b/gi,
+    re: /\blet'?s (dive (in|into)|unpack|explore|delve (in|into))\b|\bthe fascinating world of\b|\bpicture this\b|\bever wonder(?:ed)?\b|\bbuckle up\b|\bwithout further ado\b|\bin this (article|post|guide),? (we'?ll|we will|i'?ll|i will)\b/gi,
     why: '"Let\'s dive in", "let\'s unpack", "picture this": LLM article scaffolding.'
   },
   {
@@ -269,7 +271,7 @@ const SLOP_RULES = [
     name: 'Fake-strong verbs',
     tier: 2,
     category: 'Vocabulary',
-    re: /\bserves? as an? (centralized |comprehensive |powerful )?(hub|platform|solution|gateway|foundation|cornerstone)\b|\bacts? as an? (bridge|catalyst)\b/gi,
+    re: /\bserves? as an? (centralized |comprehensive |powerful )?(hub|platform|solution|gateway|foundation|cornerstone)\b|\bacts? as an? (bridge|catalyst)\b|\bserves? as a hub\b/gi,
     why: '"Serves as a centralized hub": say what it actually does instead.'
   },
   {
@@ -277,7 +279,7 @@ const SLOP_RULES = [
     name: 'Emoji decoration',
     tier: 2,
     category: 'Formatting',
-    re: /(^|\n)\s*(?:🚀|✨|🔥|💡|🎯|⚡|🧵|👇|📈|🤯)\s*\S|(?:🚀|✨|🔥|💡|🎯|⚡|📈|🤯)\s*$/gm,
+    re: /(^|\n)\s*(?:🚀|✨|🔥|💡|🎯|⚡|🧵|👇|📈|🤯|🧠|✅|✔️|🌟|💪|🙌|🔑|📌|👉)\s*\S|(?:🚀|✨|🔥|💡|🎯|⚡|📈|🤯|🧠|✅|✔️|🌟)\s*$/gm,
     why: 'Emoji as line decoration (🚀 opening or closing a line): LLM social-post formatting.'
   },
   {
@@ -293,7 +295,7 @@ const SLOP_RULES = [
     name: 'Chatbot leftover phrasing',
     tier: 2,
     category: 'Structure',
-    re: /\b(certainly!|of course! let me|great question!|i hope this helps!?|let me know if you (need|have|want)|as an ai(?: language)? (?:model|assistant)|as of my last (?:update|training)|knowledge cutoff)\b|contentReference|oaicite|turn0(?:search|news)|utm_source=/gi,
+    re: /\b(certainly!?|of course! let me|great question!|i hope this helps!?|let me know if you (need|have|want)|as an ai(?: language)? (?:model|assistant)|as of my last (?:update|training)|knowledge cutoff|here is the revised (?:article|draft|version|text))\b|contentReference|oaicite|turn0(?:search|news)|utm_source=/gi,
     why: 'Unedited chatbot voice or paste debris: "I hope this helps!", "as of my last update", oaicite.'
   },
   {
@@ -413,7 +415,7 @@ const SLOP_RULES = [
     name: 'Challenges-and-outlook formula',
     tier: 2,
     category: 'Structure',
-    re: /\bdespite\s+(?:these|those|such|its|their|the|numerous|significant|ongoing)\s+(?:\w+\s+)?challenges\b|\bfac(?:e|es|ed|ing)\s+(?:several|numerous|many|significant|various|a\s+number\s+of)\s+challenges\b|\bchallenges\s+remain\b|\bremains\s+to\s+be\s+seen\b|\b(?:only\s+)?time\s+will\s+tell\b/gi,
+    re: /\bdespite\s+(?:these|those|such|its|their|the|numerous|significant|ongoing)\s+(?:\w+\s+)?challenges\b|\bfac(?:e|es|ed|ing)\s+(?:several|numerous|many|significant|various|a\s+number\s+of)\s+challenges\b|\bchallenges\s+remain\b|\bremains\s+to\s+be\s+seen\b|\b(?:only\s+)?time\s+will\s+tell\b|\bthe future remains promising\b|\ba promising future (?:ahead|awaits)\b/gi,
     why: 'Wikipedia canned closer: “despite these challenges”, “remains to be seen”, “time will tell”.'
   },
   {
@@ -447,6 +449,30 @@ const SLOP_RULES = [
     category: 'Rhythm',
     find: makeAnaphoraFinder(),
     why: 'Three or more consecutive sentences starting on the same word: “Maybe X. Maybe Y. Maybe Z.” Pronouns skipped.'
+  },
+  {
+    id: 'synthetic-balance',
+    name: 'Synthetic benefits/challenges balance',
+    tier: 2,
+    category: 'Structure',
+    re: /\bwhile\b[^.!?\n]{5,80}\b(?:benefits?|advantages?)\b[^.!?\n]{0,50}\b(?:challenges?|drawbacks?|risks?)\b|\boffers?\s+(?:many\s+|several\s+)?benefits?,?\s+(?:it\s+|they\s+)?(?:also\s+)?(?:presents?|poses?|brings?)\s+(?:several\s+|many\s+|some\s+)?(?:challenges?|drawbacks?)\b/gi,
+    why: '"While it offers benefits, it also presents challenges." True of everything, specific about nothing.'
+  },
+  {
+    id: 'bold-label-list',
+    name: 'Bold-label list shape',
+    tier: 2,
+    category: 'Formatting',
+    re: /(?:^|\n)\s*(?:[-*•]\s*)?(?:Efficiency|Scalability|Innovation|Flexibility|Reliability|Productivity|Performance|Security|Transparency|Sustainability|Empowerment|Collaboration)\s*:/gim,
+    why: 'Every bullet as "Efficiency: …" / "Scalability: …": mechanical list shape from LLM how-tos.'
+  },
+  {
+    id: 'prompt-debris',
+    name: 'Prompt/placeholder debris',
+    tier: 3,
+    category: 'Formatting',
+    re: /\[(?:insert|add|your|placeholder|statistic|date|name|link)[^\]]{0,50}\]|\[cite:\s*\d+\]/gi,
+    why: 'Unfinished prompt left in published copy: "[Insert statistic]", "[cite: 3]".'
   },
 
   // ---------- WEAK SIGNALS (tier 1) ----------

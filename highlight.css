@@ -1,33 +1,24 @@
+/* Reset the UA <mark> yellow. One wash. Nothing else. */
 .slopspotter-mark {
+  all: unset;
   display: inline;
   color: inherit;
   cursor: help;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  background-repeat: no-repeat;
+  border-radius: 2px;
 }
 
-/* Marker stroke through the lower half of the glyphs — not a full-cell wash
-   and not a spellcheck underline. Each wrapped line gets its own stroke. */
 .slopspotter-t3 {
-  background-image: linear-gradient(rgba(255, 90, 90, 0.5), rgba(255, 90, 90, 0.5));
-  background-size: 100% 0.55em;
-  background-position: 0 78%;
+  background-color: rgba(255, 90, 90, 0.32);
 }
 
 .slopspotter-t2 {
-  background-image: linear-gradient(rgba(245, 185, 66, 0.55), rgba(245, 185, 66, 0.55));
-  background-size: 100% 0.48em;
-  background-position: 0 82%;
+  background-color: rgba(245, 176, 50, 0.38);
 }
 
 .slopspotter-t1 {
-  background-image: linear-gradient(rgba(255, 229, 102, 0.55), rgba(255, 229, 102, 0.55));
-  background-size: 100% 0.22em;
-  background-position: 0 92%;
+  background-color: rgba(255, 220, 80, 0.4);
 }
 
 .slopspotter-tip {
