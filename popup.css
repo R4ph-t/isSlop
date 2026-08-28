@@ -1,0 +1,188 @@
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1917;
+  --muted: #6e6a62;
+  --line: #e4dfd4;
+  --btn: #1c1917;
+  --btn-text: #f6f3ec;
+  --t3: #e25b5b;
+  --t2: #e0a53a;
+  --t1: #e6c84a;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 268px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  padding: 16px 16px 14px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: block;
+}
+
+h1 {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.tag {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+button {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--btn);
+  color: var(--btn-text);
+  font: 600 13px/1 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #2a2623;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--muted);
+  padding: 0 10px;
+}
+
+button.ghost:hover {
+  background: transparent;
+  color: var(--ink);
+}
+
+.status {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.status.is-error {
+  color: #a33;
+}
+
+#results {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.score-block {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.score {
+  font-family: ui-serif, Iowan Old Style, Palatino, Georgia, serif;
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-block.is-human .score { color: #2f6b46; }
+.score-block.is-some .score { color: #8a6a12; }
+.score-block.is-heavy .score { color: #b45a12; }
+.score-block.is-city .score { color: var(--t3); }
+
+.label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tiers {
+  list-style: none;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tiers li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.swatch {
+  width: 14px;
+  height: 5px;
+  border-radius: 1px;
+}
+
+.t3 .swatch { background: var(--t3); }
+.t2 .swatch { background: var(--t2); }
+.t1 .swatch { background: var(--t1); }
+
+.n {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.cats {
+  list-style: none;
+  display: grid;
+  gap: 5px;
+}
+
+.cats li {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.cats .n {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+}
+
+.meta {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+}

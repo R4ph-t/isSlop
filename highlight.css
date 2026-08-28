@@ -1,0 +1,51 @@
+.slopspotter-mark {
+  display: inline;
+  color: inherit;
+  cursor: help;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  background-repeat: no-repeat;
+}
+
+/* Marker stroke through the lower half of the glyphs — not a full-cell wash
+   and not a spellcheck underline. Each wrapped line gets its own stroke. */
+.slopspotter-t3 {
+  background-image: linear-gradient(rgba(255, 90, 90, 0.5), rgba(255, 90, 90, 0.5));
+  background-size: 100% 0.55em;
+  background-position: 0 78%;
+}
+
+.slopspotter-t2 {
+  background-image: linear-gradient(rgba(245, 185, 66, 0.55), rgba(245, 185, 66, 0.55));
+  background-size: 100% 0.48em;
+  background-position: 0 82%;
+}
+
+.slopspotter-t1 {
+  background-image: linear-gradient(rgba(255, 229, 102, 0.55), rgba(255, 229, 102, 0.55));
+  background-size: 100% 0.22em;
+  background-position: 0 92%;
+}
+
+.slopspotter-tip {
+  all: initial;
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 2147483647;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 8px 10px;
+  background: #1a1a1a;
+  color: #f4f4f0;
+  font: 12px/1.4 ui-sans-serif, system-ui, sans-serif;
+  white-space: normal;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.slopspotter-tip[hidden] {
+  display: none !important;
+}

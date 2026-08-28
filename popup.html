@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SlopSpotter</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <img class="logo" src="icons/icon.svg" width="22" height="22" alt="" />
+    <div>
+      <h1>SlopSpotter</h1>
+      <p class="tag">Highlights slop in the page</p>
+    </div>
+  </header>
+
+  <div class="actions">
+    <button id="scan" type="button">Scan page</button>
+    <button id="clear" type="button" class="ghost">Clear</button>
+  </div>
+
+  <p id="status" class="status" hidden></p>
+
+  <section id="results" hidden>
+    <div class="score-block" id="score-block">
+      <div id="score" class="score"></div>
+      <div id="label" class="label"></div>
+    </div>
+
+    <ul class="tiers">
+      <li class="t3"><span class="swatch"></span><span id="t3" class="n">0</span></li>
+      <li class="t2"><span class="swatch"></span><span id="t2" class="n">0</span></li>
+      <li class="t1"><span class="swatch"></span><span id="t1" class="n">0</span></li>
+    </ul>
+
+    <ul id="cats" class="cats"></ul>
+
+    <p class="meta"><span id="words" class="n">0</span> words</p>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>
