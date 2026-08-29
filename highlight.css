@@ -7,8 +7,8 @@
   display: inline;
   color: inherit;
   cursor: help;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
+  box-decoration-break: slice;
+  -webkit-box-decoration-break: slice;
   padding: 0.1em 0.38em;
   border-radius: 0.2em;
   mix-blend-mode: multiply;
@@ -223,7 +223,28 @@
   display: none !important;
 }
 
-.slopspotter-flash {
-  outline: 2px solid rgba(255, 122, 26, 0.95);
-  outline-offset: 2px;
+.slopspotter-flash-ring {
+  position: fixed;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 2147483646;
+  border: 2px solid rgba(255, 122, 26, 0.95);
+}
+
+.slopspotter-flash-ring.is-first:not(.is-last) {
+  border-inline-end: 0;
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.slopspotter-flash-ring.is-last:not(.is-first) {
+  border-inline-start: 0;
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+.slopspotter-flash-ring.is-mid {
+  border-inline-start: 0;
+  border-inline-end: 0;
+  border-radius: 0;
 }

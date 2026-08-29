@@ -8,12 +8,15 @@
   ]);
   const MARK_CLASS = 'slopspotter-mark';
   const TIP_ID = 'slopspotter-tip';
+  const FLASH_HOST_ID = 'slopspotter-flash-host';
   const DARK_CLASS = 'slopspotter-on-dark';
   const MIN_TEXT_LEN = 20;
   const TIER_NAME = { 3: 'HEAVY', 2: 'MEDIUM', 1: 'LIGHT' };
 
   let markSeq = 0;
   let pinnedMark = null;
+  let flashMark = null;
+  let flashTimer = 0;
   const bound = [];
 
   function listen(target, type, fn, opts) {
@@ -270,15 +273,20 @@
   });
 
   listen(window, 'scroll', function () {
+    layoutFlash();
     if (pinnedMark) {
       showTipFor(pinnedMark);
       return;
     }
     hideTip();
   }, true);
-  listen(window, 'resize', hideTip);
+  listen(window, 'resize', function () {
+    layoutFlash();
+    hideTip();
+  });
 
   function clearHighlights() {
+    clearFlash();
     hideTip();
     const tip = document.getElementById(TIP_ID);
     if (tip && tip.parentNode) tip.parentNode.removeChild(tip);
@@ -309,18 +317,65 @@
     return findings;
   }
 
+  function clearFlash() {
+    flashMark = null;
+    if (flashTimer) {
+      window.clearTimeout(flashTimer);
+      flashTimer = 0;
+    }
+    const host = document.getElementById(FLASH_HOST_ID);
+    if (host && host.parentNode) host.parentNode.removeChild(host);
+  }
+
+  function layoutFlash() {
+    if (!flashMark || !flashMark.isConnected) {
+      if (flashMark) clearFlash();
+      return;
+    }
+    let host = document.getElementById(FLASH_HOST_ID);
+    if (!host) {
+      host = document.createElement('div');
+      host.id = FLASH_HOST_ID;
+      host.setAttribute('aria-hidden', 'true');
+      document.documentElement.appendChild(host);
+    }
+    host.replaceChildren();
+    const rects = flashMark.getClientRects();
+    const n = rects.length;
+    const radius = getComputedStyle(flashMark).borderRadius;
+    const dir = getComputedStyle(flashMark).direction;
+    const pad = 2;
+    for (let i = 0; i < n; i++) {
+      const r = rects[i];
+      if (r.width < 1 || r.height < 1) continue;
+      const piece = document.createElement('div');
+      piece.className = 'slopspotter-flash-ring';
+      if (i === 0) piece.classList.add('is-first');
+      if (i === n - 1) piece.classList.add('is-last');
+      if (i > 0 && i < n - 1) piece.classList.add('is-mid');
+      piece.style.top = (r.top - pad) + 'px';
+      piece.style.left = (r.left - pad) + 'px';
+      piece.style.width = (r.width + pad * 2) + 'px';
+      piece.style.height = (r.height + pad * 2) + 'px';
+      piece.style.borderRadius = radius;
+      piece.style.direction = dir;
+      host.appendChild(piece);
+    }
+  }
+
   function jumpTo(id) {
     const mark = document.getElementById(id);
     if (!mark) return false;
     pinnedMark = mark;
     mark.scrollIntoView({ block: 'center', behavior: 'auto' });
     showTipFor(mark);
-    mark.classList.remove('slopspotter-flash');
-    void mark.offsetWidth;
-    mark.classList.add('slopspotter-flash');
-    window.setTimeout(function () {
+    clearFlash();
+    flashMark = mark;
+    layoutFlash();
+    flashTimer = window.setTimeout(function () {
+      flashTimer = 0;
       if (pinnedMark === mark) pinnedMark = null;
-      mark.classList.remove('slopspotter-flash');
+      if (flashMark === mark) clearFlash();
     }, 5000);
     return true;
   }
@@ -415,6 +470,7 @@
 
   window.__slopspotterTeardown = function () {
     pinnedMark = null;
+    clearFlash();
     bound.forEach(function (item) {
       item[0].removeEventListener(item[1], item[2], item[3]);
     });

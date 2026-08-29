@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>isSlop store shot — tooltip</title>
+  <link rel="stylesheet" href="../highlight.css" />
+  <style>
+    html, body {
+      margin: 0;
+      width: 1280px;
+      height: 800px;
+      overflow: hidden;
+      background: #f7f4ee;
+      color: #1a1a18;
+      font: 20px/1.7 Georgia, Iowan Old Style, ui-serif, serif;
+    }
+    .chrome {
+      height: 44px;
+      background: #f3f1ed;
+      border-bottom: 1px solid #d8d5d0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      font: 12px/1 Manrope, ui-sans-serif, system-ui, sans-serif;
+      color: #7d7d78;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #d8d5d0; }
+    .omnibox {
+      flex: 1;
+      height: 26px;
+      border-radius: 13px;
+      background: #fff;
+      border: 1px solid #e5e2dd;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+    }
+    article {
+      position: relative;
+      padding: 72px 120px 40px;
+      max-width: 38em;
+    }
+    h1 {
+      font: 800 36px/1.15 Manrope, ui-sans-serif, sans-serif;
+      letter-spacing: -0.03em;
+      margin: 0 0 28px;
+    }
+    .slopspotter-tip {
+      position: absolute !important;
+      left: 92px;
+      top: 268px;
+    }
+  </style>
+</head>
+<body>
+  <div class="chrome">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="omnibox">https://example.com/customer-first</div>
+  </div>
+  <article>
+    <h1>Putting the customer first</h1>
+    <p>
+      The work is about
+      <mark class="slopspotter-mark slopspotter-t3" style="--ss-j:0.95;--ss-ang:99deg">putting the customer first</mark>
+      in every release, a
+      <mark class="slopspotter-mark slopspotter-t3" style="--ss-j:0.9;--ss-ang:101deg">testament to the power of</mark>
+      modern engagement.
+    </p>
+    <p>
+      Experts agree this
+      <mark class="slopspotter-mark slopspotter-t2" style="--ss-j:0.93;--ss-ang:98deg">plays a vital role</mark>
+      in the
+      <mark class="slopspotter-mark slopspotter-t1" style="--ss-j:0.88;--ss-ang:100deg">evolving landscape</mark>.
+    </p>
+    <div class="slopspotter-tip" role="tooltip">
+      <div class="slopspotter-tip-head">
+        <span class="slopspotter-tip-name">Importance puffery</span>
+        <span class="slopspotter-tip-level">HEAVY</span>
+      </div>
+      <div class="slopspotter-tip-why">Asserts importance instead of showing it: "stands as a testament", "plays a vital role", "cannot be overstated".</div>
+      <div class="slopspotter-tip-instead">
+        <div class="slopspotter-tip-kicker">TRY INSTEAD</div>
+        <div class="slopspotter-tip-try">Say what it did, and by how much.</div>
+      </div>
+      <div class="slopspotter-tip-foot">
+        <span class="slopspotter-tip-meta">4 flagged words</span>
+        <span class="slopspotter-tip-meta">1× on this page</span>
+      </div>
+    </div>
+  </article>
+</body>
+</html>

@@ -131,7 +131,10 @@ Then:
 
 1. One-time: [Chrome Web Store developer account](https://chrome.google.com/webstore/devconsole) ($5).
 2. **New item** (or **Package → Upload new package** for an update). Upload `dist/islop-x.y.z.zip`. Each upload must be a higher version than the last.
-3. Store listing: name, short + detailed description, 1280×800 or 640×400 screenshots, 440×280 small promo tile, 128px icon (already in the zip).
+3. Store listing: name, short + detailed description, then the images in `store/`:
+   - Screenshots (1280×800 JPEG): `screenshot-1-popup.jpg`, `screenshot-2-tooltip.jpg`, `screenshot-3-dark.jpg`
+   - Small promo tile (440×280): `promo-small.jpg`
+   - 128px icon: `icons/icon128.png` (already in the zip)
 4. Privacy tab: single purpose, data use (none leaves the browser), justify `activeTab` and `scripting`, remote code = No. You need a public privacy-policy URL.
 5. Submit for review.
 

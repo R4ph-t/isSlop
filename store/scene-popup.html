@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>isSlop store shot — popup</title>
+  <link rel="stylesheet" href="../highlight.css" />
+  <style>
+    html, body {
+      margin: 0;
+      width: 1280px;
+      height: 800px;
+      overflow: hidden;
+      background: #e8e4dc;
+      font: 18px/1.65 Georgia, Iowan Old Style, ui-serif, serif;
+      color: #1a1a18;
+    }
+    .chrome {
+      height: 44px;
+      background: #f3f1ed;
+      border-bottom: 1px solid #d8d5d0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      font: 12px/1 Manrope, ui-sans-serif, system-ui, sans-serif;
+      color: #7d7d78;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #d8d5d0; }
+    .omnibox {
+      flex: 1;
+      height: 26px;
+      border-radius: 13px;
+      background: #fff;
+      border: 1px solid #e5e2dd;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      color: #5e5e5b;
+    }
+    .stage {
+      display: grid;
+      grid-template-columns: 1fr 440px;
+      height: 756px;
+    }
+    article {
+      padding: 48px 56px 40px;
+      max-width: 42em;
+    }
+    h1 {
+      font: 800 32px/1.15 Manrope, ui-sans-serif, sans-serif;
+      letter-spacing: -0.03em;
+      margin: 0 0 8px;
+    }
+    .lede { color: #5e5e5b; font-size: 15px; margin: 0 0 28px; }
+    .side {
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 28px 36px 0 0;
+    }
+    iframe {
+      width: 400px;
+      height: 720px;
+      border: 0;
+      border-radius: 8px;
+      box-shadow: 0 22px 50px -18px rgba(0, 0, 0, 0.35);
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="chrome">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="omnibox">https://example.com/the-future-of-work</div>
+  </div>
+  <div class="stage">
+    <article>
+      <h1>The future of work in a digital landscape</h1>
+      <p class="lede">A typical model-written post. isSlop marks the tells.</p>
+      <p>
+        <mark class="slopspotter-mark slopspotter-t3" style="--ss-j:0.94;--ss-ang:99deg">In today's rapidly evolving digital landscape</mark>,
+        organizations must
+        <mark class="slopspotter-mark slopspotter-t3" style="--ss-j:0.9;--ss-ang:101deg">delve into</mark>
+        every
+        <mark class="slopspotter-mark slopspotter-t3" style="--ss-j:0.97;--ss-ang:98deg">tapestry</mark>
+        of opportunity.
+      </p>
+      <p>
+        This isn't just a tool.
+        <mark class="slopspotter-mark slopspotter-t3" style="--ss-j:0.92;--ss-ang:100deg">It's a paradigm shift</mark>
+        that
+        <mark class="slopspotter-mark slopspotter-t2" style="--ss-j:0.88;--ss-ang:97deg">plays a vital role</mark>
+        and
+        <mark class="slopspotter-mark slopspotter-t1" style="--ss-j:0.91;--ss-ang:99deg">cannot be overstated</mark>.
+      </p>
+      <p>
+        At the end of the day, the possibilities are truly endless.
+        Let's dive in.
+      </p>
+    </article>
+    <div class="side">
+      <iframe src="../popup.html?preview=1" title="isSlop"></iframe>
+    </div>
+  </div>
+</body>
+</html>

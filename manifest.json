@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "isSlop",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Highlight likely AI slop on any page. Nothing leaves the browser. No network, no tracking.",
   "permissions": ["activeTab", "scripting"],
   "background": {
