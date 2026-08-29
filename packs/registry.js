@@ -1,7 +1,7 @@
 // The only list a contributor edits to add a language pack.
 // Dual-env: browser global + Node.
 
-const SLOP_PACK_IDS = ['en', 'fr'];
+const SLOP_PACK_IDS = ['en', 'fr', 'es'];
 const SLOP_FALLBACK_PACK = 'en';
 
 function packList() {
@@ -65,7 +65,7 @@ function detectPack(htmlLang, text) {
       let n = 0;
       const limit = Math.min(words.length, 400);
       for (let w = 0; w < limit; w++) {
-        const token = words[w].replace(/^[^a-zàâäéèêëïîôùûüçœæ'-]+|[^a-zàâäéèêëïîôùûüçœæ'-]+$/g, '');
+        const token = words[w].replace(/^[^a-zàáâäèéêëìíîïòóôöùúûüüçñœæ'-]+|[^a-zàáâäèéêëìíîïòóôöùúûüüçñœæ'-]+$/g, '');
         if (set[token]) n += 1;
       }
       if (n > bestScore) {

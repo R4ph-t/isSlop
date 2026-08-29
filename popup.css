@@ -186,3 +186,10 @@ button.ghost:hover {
   color: var(--muted);
   font-size: 11px;
 }
+
+.pack-note {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}

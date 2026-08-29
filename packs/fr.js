@@ -317,6 +317,7 @@
   const pack = {
     id: 'fr',
     name: 'French',
+    verified: true,
     locales: ['fr', 'fr-FR', 'fr-CA', 'fr-BE', 'fr-CH', 'fr-LU'],
     stopwords: [
       'le', 'la', 'les', 'de', 'des', 'du', 'un', 'une', 'et', 'à', 'a', 'est',

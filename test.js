@@ -240,5 +240,49 @@ console.log('10. French pack');
   assert(detectPack('', FR_HUMAN).id === 'fr', 'stopword vote on French prose → fr');
 }
 
+// 11. Spanish pack (unverified)
+console.log('11. Spanish pack (unverified)');
+{
+  const es = require('./packs/es.js');
+  const { SLOP_PACK_IDS, detectPack } = require('./packs/registry.js');
+  function ids(text) {
+    return engine.scanText(text, es).matches.map((m) => m.rule.id);
+  }
+  const ES_SLOP = padToWords(
+    `En el mundo actual, cabe destacar que es importante señalar esta verdadera oportunidad. En la era digital, en el panorama actual, profundicemos en el tema. No solo la solución potencia los procesos, sino también se erige como un pilar fundamental, logrando así un antes y un después. Los expertos coinciden en que es crucial. No es un simple herramienta, es un aliado estratégico. Por otro lado, en este sentido, se puede observar que es innegable. En conclusión, no dudes en contactarnos. Espero que este artículo te haya servido.`,
+    200
+  );
+  const ES_HUMAN = padToWords(
+    `Ayer me pasé 4 horas detrás de un race en la cola de jobs. Tenemos 3 workers en una máquina y juraba que el lock estaba tomado, pero los logs decían otra cosa. Volqué las claves de redis, encontré 12 entradas viejas del martes y las borré. Después el backlog bajó de 840 a 11 en unos 90 segundos. Todavía me molesta no haber mirado redis primero. El «arreglo» del PR era un sleep(50), de esos parches que explotan al mes. Si te pasa: mira el TTL de la clave, no los logs del worker. Escribí un script de 20 líneas que imprime la edad y el owner. Me dijo más que el dashboard. Lo subimos a las 23h y me fui a dormir. Ni manifiesto ni lección para la industria, solo un bug tonto con un número.`,
+    200
+  );
+  assert(es.id === 'es', 'pack id is es');
+  assert(es.verified === false, 'Spanish pack is marked unverified');
+  assert(SLOP_PACK_IDS.indexOf('es') !== -1, 'registry lists es');
+  assert(engine.currentPack().id === 'en', 'default pack stays English');
+  const slop = engine.scanText(ES_SLOP, es);
+  assert(slop.score >= 60, 'Spanish slop score >= 60 (got ' + slop.score + ', label ' + slop.label + ')');
+  assert((slop.tiers[3] || 0) >= 3, 'Spanish slop has >= 3 tier-3 hits (got ' + slop.tiers[3] + ')');
+  const human = engine.scanText(ES_HUMAN, es);
+  assert(human.score < 8, 'Spanish human score < 8 (got ' + human.score + ')');
+  if (human.matches.length) {
+    console.log('     hits: ' + human.matches.map((m) => m.rule.id + '@' + JSON.stringify(ES_HUMAN.slice(m.start, m.end))).join(', '));
+  }
+  assert(ids('Cabe destacar que el lock expiró.').includes('cabe-destacar'), 'cabe destacar que');
+  assert(ids('En el mundo actual todo cambia.').includes('landscape-opener'), 'en el mundo actual');
+  assert(ids('En la era digital todo está conectado.').includes('landscape-opener'), 'en la era digital');
+  assert(ids('No es un simple herramienta, es un aliado.').includes('no-es-sino'), 'no es X, es Y');
+  assert(ids('No solo es rápido, sino también aguanta carga.').includes('no-solo-sino'), 'no solo… sino también');
+  assert(ids('No dudes en abrir una issue.').includes('no-dudes'), 'no dudes en');
+  assert(ids('Los expertos coinciden en que es clave.').includes('weasel-attribution'), 'los expertos coinciden');
+  assert(ids('Eso no llega a hacer sentido.').includes('anglicisms'), 'hacer sentido');
+  assert(ids('Se puede observar que el TTL importa.').includes('pasiva-refleja'), 'se puede observar que');
+  assert(ids('La herramienta se erige como un estándar.').includes('importance-puffery'), 'se erige como');
+  assert(!ids('El lock estaba tomado, pero los logs decían otra cosa.').includes('connectors'), 'mid-sentence pero is not a connector tell');
+  assert(detectPack('es', '').id === 'es', 'html lang=es → Spanish pack');
+  assert(detectPack('es-MX', '').id === 'es', 'html lang=es-MX → Spanish pack');
+  assert(detectPack('', ES_HUMAN).id === 'es', 'stopword vote on Spanish prose → es');
+}
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);

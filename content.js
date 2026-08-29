@@ -200,7 +200,15 @@
       allMatches.push.apply(allMatches, matches);
     }
 
-    return engine.summarize(allMatches, wordCount);
+    const summary = engine.summarize(allMatches, wordCount);
+    if (pack) {
+      summary.pack = {
+        id: pack.id,
+        name: pack.name,
+        verified: pack.verified !== false
+      };
+    }
+    return summary;
   }
 
   chrome.runtime.onMessage.addListener(function (msg, _sender, sendResponse) {

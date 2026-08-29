@@ -37,12 +37,13 @@ The original catalog was the build spec. Rules now also draw from:
 - [Simon Willison, LLM cliché highlighter](https://github.com/simonw/tools/blob/main/llm-cliche-highlighter.html) — structural chains (`no X, no Y`), “don’t VERB it”, echoing sentences, anaphora
 - [slopdetector.org AI words list](https://slopdetector.org/blog/ai-words-list)
 - [Search Engine Watch, 30 examples of AI slop](https://searchenginewatch.com/what-is-ai-slop/) — synthetic balance, placeholder debris, bold-label lists
+- Spanish pack (unverified): [stop-slop-spanish](https://github.com/sohantanna/stop-slop-spanish), [humanizar-texto-es](https://github.com/fernandotellado/ai-skills/blob/main/humanizar-texto-es/SKILL.md), [ActivaDocente](https://activadocente.com/frases-y-estilos-reconocibles-en-los-textos-escritos-con-chatgpt-e-ia/), [Diario Vida](https://diariovida.com/tics-texto-escrito-con-ia-espanol/)
 
-These are **tells**, not proof of origin. Humans write some of them; density is the product.
+These are **tells**, not proof of origin. Humans write some of them; density is the product. The Spanish catalog is compiled from those lists and needs a native-speaker review before `verified: true`.
 
 ## How to add a pack
 
-A pack is one language. English is not special — it is `packs/en.js`. French is `packs/fr.js`. The engine never names a language; scan picks a pack from `document.documentElement.lang`, then a stopword vote on the page text if `lang` is missing.
+A pack is one language. English is not special — it is `packs/en.js`. French is `packs/fr.js`. Spanish is `packs/es.js` (**unverified**). The engine never names a language; scan picks a pack from `document.documentElement.lang`, then a stopword vote on the page text if `lang` is missing.
 
 The only list a contributor edits besides the new file is `SLOP_PACK_IDS` in `packs/registry.js`. Popup inject and tests load from that array. Do not edit `popup.js` or `engine.js` to add a language.
 
@@ -55,12 +56,15 @@ The only list a contributor edits besides the new file is `SLOP_PACK_IDS` in `pa
 5. Add fixtures in `test.js`: a slop paragraph that scores high, a human paragraph that stays at **score 0**, plus `detectPack('<id>', '')` and a stopword-vote case.
 6. Run `node test.js`. Existing English and French tests must still pass.
 
+Set `verified: true` only when a native speaker has scanned real pages in that language and the human fixture still scores 0. Leave `verified: false` (and say so in the file header) if the catalog is compiled from published lists but not attested yet. Unverified packs still run on matching `lang`; the popup labels them so hits are treated as drafts.
+
 ### Pack shape
 
 ```js
 {
   id: 'es',
   name: 'Spanish',
+  verified: false,            // true only after a native speaker attests the pack
   locales: ['es', 'es-ES', 'es-MX', 'es-AR'],  // html lang values that select this pack
   stopwords: ['el', 'la', 'de', 'que', 'y', 'en', /* … */],
   rules: [ /* see below */ ],

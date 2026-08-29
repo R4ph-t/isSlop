@@ -443,6 +443,7 @@
   const pack = {
     id: 'en',
     name: 'English',
+    verified: true,
     locales: ['en', 'en-US', 'en-GB', 'en-AU', 'en-CA', 'en-IN', 'en-NZ', 'en-IE', 'en-ZA'],
     stopwords: [
       'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i', 'it', 'for',

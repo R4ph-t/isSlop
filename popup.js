@@ -59,6 +59,17 @@ function render(summary) {
   document.getElementById('t1').textContent = String((summary.tiers && summary.tiers[1]) || 0);
   document.getElementById('words').textContent = String(summary.wordCount || 0);
 
+  const note = document.getElementById('pack-note');
+  if (note) {
+    if (summary.pack && summary.pack.verified === false) {
+      note.hidden = false;
+      note.textContent = (summary.pack.name || summary.pack.id) + ' pack is unverified — treat hits as drafts until a native speaker reviews them.';
+    } else {
+      note.hidden = true;
+      note.textContent = '';
+    }
+  }
+
   const cats = document.getElementById('cats');
   cats.replaceChildren();
   const list = summary.categories || [];
