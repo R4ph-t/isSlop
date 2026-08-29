@@ -1,6 +1,6 @@
 # SlopSpotter
 
-Chrome extension that highlights likely AI-generated "slop" **inline on the page**, with a tooltip naming the rule that fired. Detection is purely local and rule-based: no network, no ML, no API keys.
+Chrome extension that highlights likely AI-generated "slop" **inline on the page**, with a tooltip naming the rule that fired. Detection is 100% local: nothing leaves the browser. No network, no accounts, no tracking, no ML APIs.
 
 Toolbar and popup icons are from [Lucide](https://lucide.dev) (`scan-search`, `eraser`; ISC License).
 

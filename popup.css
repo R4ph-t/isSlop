@@ -193,3 +193,22 @@ button.ghost:hover {
   font-size: 11px;
   line-height: 1.4;
 }
+
+.privacy {
+  margin-top: 14px;
+  padding: 10px 11px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #faf8f3;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.privacy-kicker {
+  color: var(--ink);
+  font-weight: 650;
+  font-size: 11px;
+  letter-spacing: -0.01em;
+  margin-bottom: 3px;
+}
