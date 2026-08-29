@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SlopSpotter",
   "version": "1.0.0",
-  "description": "Highlight likely AI slop on any page. 100% local: nothing leaves the browser. No network, no tracking.",
+  "description": "Highlight likely AI slop on any page. Nothing leaves the browser. No network, no tracking.",
   "permissions": ["activeTab", "scripting"],
   "action": {
     "default_popup": "popup.html",
