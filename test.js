@@ -50,6 +50,16 @@ const HUMAN = padToWords(
 
 console.log('SlopSpotter engine tests\n');
 
+console.log('0. English pack');
+{
+  const pack = require('./packs/en.js');
+  const { SLOP_PACK_IDS } = require('./packs/registry.js');
+  assert(pack.id === 'en', 'pack id is en');
+  assert(Array.isArray(pack.rules) && pack.rules.length > 0, 'pack has rules (got ' + pack.rules.length + ')');
+  assert(SLOP_PACK_IDS.indexOf('en') !== -1, 'registry lists en');
+  assert(engine.currentPack().id === 'en', 'engine default pack is en');
+}
+
 // 1. Synthetic slop
 console.log('1. Synthetic slop paragraph');
 {
@@ -93,7 +103,7 @@ console.log('3. Delve vs dove');
 console.log('4. Overlap merge');
 {
   const text = "It isn't just robust. It's transformative.";
-  const raw = engine.findMatches(text, require('./rules.js').SLOP_RULES);
+  const raw = engine.findMatches(text, require('./packs/en.js').rules);
   const merged = engine.mergeOverlaps(raw);
   const spans = merged.map((m) => [m.start, m.end]);
   let overlap = false;
@@ -164,6 +174,26 @@ console.log('8. Search Engine Watch examples');
   assert(ids('Despite these challenges, the future remains promising.').includes('despite-challenges'), 'sunny-fog future remains promising');
   assert(ids('\nEfficiency: faster deploys\nScalability: more users').includes('bold-label-list'), 'bold-label list');
   assert(ids('Revenue grew [Insert statistic] last year.').includes('prompt-debris'), 'prompt placeholder');
+}
+
+// 9. no-ai-slop skill phrase gaps
+console.log('9. no-ai-slop skill phrases');
+{
+  function ids(text) {
+    return engine.scanText(text).matches.map((m) => m.rule.id);
+  }
+  assert(ids("Here's what I mean: the lock is the bug.").includes('faux-insight'), "here's what I mean");
+  assert(ids('Let me be clear: the queue was wedged.').includes('performative-honesty'), 'let me be clear');
+  assert(!ids('To be clear, the lock is stale.').includes('performative-honesty'), 'bare to be clear is skipped');
+  assert(ids('The uncomfortable truth is the lock expired.').includes('faux-insight'), 'the uncomfortable truth is');
+  assert(ids('This is the part most people skip.').includes('faux-insight'), 'the part most people skip');
+  assert(ids('The detail that makes it work: a separate agent grades it.').includes('colon-reveal'), 'noun-phrase colon reveal');
+  assert(!ids('If you hit this: look at the TTL on the lock key.').includes('colon-reveal'), 'human this: look is not a colon reveal');
+  assert(ids('The key point is the TTL. As you can see, this distinction matters. In other words, that last part matters more than it sounds.').includes('metadiscourse'), 'interpretive metadiscourse');
+  assert(ids('Think about it: the lock expired. The result? Faster deploys.').includes('qa-setup'), 'think about it / The result?');
+  assert(!ids('I need to think about it tomorrow.').includes('qa-setup'), 'think about it without colon is skipped');
+  assert(ids('We shipped it. And the queue drained. And I went to bed.').includes('dramatic-fragment'), 'And X. And Y. fragments');
+  assert(ids('The harbor is a beacon for shipping.').some((id) => id === 'banned-vocab-hard'), 'standalone beacon');
 }
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -40,9 +40,21 @@ The original catalog was the build spec. Rules now also draw from:
 
 These are **tells**, not proof of origin. Humans write some of them; density is the product.
 
+## Language packs
+
+Rules live in `packs/<id>.js`. English is `packs/en.js`. The engine does not hardcode a language.
+
+To add a language:
+
+1. Copy `packs/en.js` to `packs/<id>.js`
+2. Set `id`, `name`, `locales`, `stopwords`, and native `rules` (do not translate the English catalog)
+3. Add `'<id>'` to `SLOP_PACK_IDS` in `packs/registry.js`
+4. Add slop + human fixtures in `test.js` (human must stay at score 0)
+5. Run `node test.js`
+
 ## How to add a rule
 
-Append an object to `SLOP_RULES` in `rules.js`:
+Append an object to `rules` in the pack file (English: `packs/en.js`):
 
 ```js
 {
@@ -69,4 +81,4 @@ When in doubt, demote a rule one tier rather than deleting it. False positives a
 node test.js
 ```
 
-`rules.js` and `engine.js` are dual-environment (browser global + Node) so the same match/merge/score logic runs in tests and in the content script.
+Packs, `finders.js`, and `engine.js` are dual-environment (browser global + Node) so the same match/merge/score logic runs in tests and in the content script.

@@ -33,7 +33,11 @@ async function inject(tabId) {
   await chrome.scripting.insertCSS({ target: { tabId }, files: ['highlight.css'] });
   await chrome.scripting.executeScript({
     target: { tabId },
-    files: ['rules.js', 'engine.js', 'content.js']
+    files: ['finders.js', 'packs/registry.js']
+      .concat((typeof SLOP_PACK_IDS !== 'undefined' ? SLOP_PACK_IDS : ['en']).map(function (id) {
+        return 'packs/' + id + '.js';
+      }))
+      .concat(['engine.js', 'content.js'])
   });
 }
 

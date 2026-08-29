@@ -160,7 +160,8 @@
     clearHighlights();
 
     const engine = window.SlopEngine;
-    const rules = window.SLOP_RULES;
+    const pack = window.SlopPacks && window.SlopPacks.current && window.SlopPacks.current();
+    const rules = pack && pack.rules;
     if (!engine || !rules) {
       return { score: 0, label: 'Reads human', wordCount: 0, tiers: { 1: 0, 2: 0, 3: 0 }, categories: [] };
     }
@@ -177,14 +178,14 @@
     }
 
     const wordCount = engine.countWords(scannedText);
-    const dashCount = engine.countEmDashes(scannedText);
-    const flagDashes = engine.emDashShouldFlag(dashCount, wordCount);
+    const dashCount = engine.countEmDashes(scannedText, pack);
+    const flagDashes = engine.emDashShouldFlag(dashCount, wordCount, pack);
 
     const allMatches = [];
     for (const item of nodeMatches) {
       let matches = item.matches;
       if (flagDashes) {
-        matches = engine.mergeOverlaps(matches.concat(engine.findEmDashMatches(item.text)));
+        matches = engine.mergeOverlaps(matches.concat(engine.findEmDashMatches(item.text, pack)));
       }
       applyMatches(item.node, matches);
       allMatches.push.apply(allMatches, matches);

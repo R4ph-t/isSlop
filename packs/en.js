@@ -1,4 +1,4 @@
-// SlopSpotter rule catalog
+// English rule pack
 // Tiers: 3 = high certainty (strong slop tell), 2 = medium, 1 = weak signal.
 //
 // Sources (patterns, not proof of origin):
@@ -13,119 +13,25 @@
 //   https://github.com/simonw/tools/blob/main/llm-cliche-highlighter.html
 // - Radu Tyrsina, Search Engine Watch, “What is AI slop? 30 examples”
 //   https://searchenginewatch.com/what-is-ai-slop/
+// - no-ai-slop editor skill — throat-clearing, metadiscourse, colon reveals, Q&A setups
 
-const CHAIN_BODY = String.raw`[^,.;:!?\n\u2013\u2014\u2026]*`;
-const CHAIN_SEP = String.raw`(?:\s*,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+|\s*[;&\u2013\u2014]\s*(?:and\s+|or\s+)?|\s+-{1,2}\s+)`;
-const CHAIN_SPLIT = new RegExp(CHAIN_SEP, 'i');
+(function (root) {
+  const F = root.SlopFinders || require('../finders.js');
+  const register = root.registerPack || require('./registry.js').registerPack;
+  const makeChainFinder = F.makeChainFinder;
+  const makeEchoFinder = F.makeEchoFinder;
+  const makeAnaphoraFinder = F.makeAnaphoraFinder;
 
-function makeChainFinder(head, headTest, minItems) {
-  const item = head + CHAIN_BODY;
-  const chain = new RegExp(String.raw`\b${item}(?:${CHAIN_SEP}${item})+`, 'gi');
-  const min = minItems == null ? 2 : minItems;
-  return function (text) {
-    const found = [];
-    for (const m of text.matchAll(chain)) {
-      const count = m[0].split(CHAIN_SPLIT).filter((p) => headTest.test(p.trim())).length;
-      if (count < min) continue;
-      let end = m.index + m[0].length;
-      while (end > m.index && /\s/.test(text[end - 1])) end -= 1;
-      found.push({ start: m.index, end });
-    }
-    return found;
-  };
-}
+  const ANAPHORA_SKIP = /^(?:i|it|the|a|an|this|that|we|you|they|he|she|there|but|and|so|in|as|if|my|his|her|their|its|these|those|for|at|on|of|to|is|was)$/i;
 
-function makeEchoFinder() {
-  const SENT = /[^.!?\n]+[.!?]?/g;
-  const minGram = 4;
-  const minRun = 2;
-  function grams(s) {
-    const w = s.toLowerCase().match(/[a-z0-9'’-]+/g) || [];
-    const out = new Set();
-    for (let i = 0; i + minGram <= w.length; i++) out.add(w.slice(i, i + minGram).join(' '));
-    return out;
-  }
-  return function (text) {
-    const sents = [];
-    for (const m of text.matchAll(SENT)) {
-      if ((m[0].match(/\S+/g) || []).length >= 4) {
-        sents.push({ start: m.index, end: m.index + m[0].length, text: m[0] });
-      }
-    }
-    const found = [];
-    let i = 0;
-    while (i < sents.length) {
-      let j = i;
-      let shared = null;
-      while (j + 1 < sents.length) {
-        if (sents[j + 1].start - sents[j].end > 3) break;
-        const common = [...grams(sents[j].text)].filter((g) => grams(sents[j + 1].text).has(g));
-        if (!common.length) break;
-        shared = common.sort((x, y) => y.length - x.length)[0];
-        j += 1;
-      }
-      const run = j - i + 1;
-      if (run >= minRun && shared) {
-        let end = sents[j].end;
-        while (end > sents[i].start && /\s/.test(text[end - 1])) end -= 1;
-        found.push({ start: sents[i].start, end });
-        i = j + 1;
-      } else {
-        i += 1;
-      }
-    }
-    return found;
-  };
-}
-
-const ANAPHORA_SKIP = /^(?:i|it|the|a|an|this|that|we|you|they|he|she|there|but|and|so|in|as|if|my|his|her|their|its|these|those|for|at|on|of|to|is|was)$/i;
-
-function makeAnaphoraFinder() {
-  const SENT = /[^.!?\n]+[.!?]/g;
-  const minRun = 3;
-  return function (text) {
-    const sents = [];
-    for (const m of text.matchAll(SENT)) {
-      const w = m[0].match(/[A-Za-z'’-]+/);
-      if (w) {
-        sents.push({
-          start: m.index + m[0].indexOf(w[0]),
-          end: m.index + m[0].length,
-          head: w[0].toLowerCase()
-        });
-      }
-    }
-    const found = [];
-    let i = 0;
-    while (i < sents.length) {
-      let j = i;
-      while (
-        j + 1 < sents.length &&
-        sents[j + 1].head === sents[i].head &&
-        sents[j + 1].start - sents[j].end < 4
-      ) {
-        j += 1;
-      }
-      const run = j - i + 1;
-      if (run >= minRun && !ANAPHORA_SKIP.test(sents[i].head)) {
-        found.push({ start: sents[i].start, end: sents[j].end });
-        i = j + 1;
-      } else {
-        i += 1;
-      }
-    }
-    return found;
-  };
-}
-
-const SLOP_RULES = [
+  const SLOP_RULES = [
   // ---------- HIGH CERTAINTY (tier 3) ----------
   {
     id: 'banned-vocab-hard',
     name: 'Classic AI vocabulary',
     tier: 3,
     category: 'Vocabulary',
-    re: /\b(delve[sd]?|delving|tapestr(?:y|ies)|paradigm shift|game.?changer|ever-evolving|supercharge[sd]?|supercharging|beacon of\b[^.!?]{0,30}|bustling|commendable|interplay|intricacies)\b/gi,
+    re: /\b(delve[sd]?|delving|tapestr(?:y|ies)|paradigm shift|game.?changer|ever-evolving|supercharge[sd]?|supercharging|beacons?|bustling|commendable|interplay|intricacies)\b/gi,
     why: 'Words LLMs love and humans rarely type: delve, tapestry, paradigm shift, game changer, ever-evolving, supercharge.'
   },
   {
@@ -149,8 +55,8 @@ const SLOP_RULES = [
     name: 'Faux-insight setup',
     tier: 3,
     category: 'Rhetorical setups',
-    re: /\bhere['\u2019]?s (the thing|what nobody tells you|what no one tells you|what most people (miss|get wrong))\b|\bhere(?:['\u2019]s|\s+is)\s+(?:the|a)\s+(?:twist|thing|catch|kicker|rub)\b|\bwhat most people (get wrong|miss|don['\u2019]?t (know|realize|understand))\b|\bthe part everyone misses\b|\bwhat if i told you\b|\bplot twist\s*[:,]|\blet that sink in\b|\bread that again\b/gi,
-    why: 'Flatters the writer as the lone expert: "here\'s what nobody tells you", "let that sink in".'
+    re: /\bhere['\u2019]?s (the thing|what i mean|what nobody tells you|what no one tells you|what most people (miss|get wrong))\b|\bhere(?:['\u2019]s|\s+is)\s+(?:the|a)\s+(?:twist|thing|catch|kicker|rub)\b|\bwhat most people (get wrong|miss|don['\u2019]?t (know|realize|understand))\b|\b(?:this is )?the part (?:that )?(?:everyone|most people) (?:miss(?:es)?|skip|get wrong)\b|\bthe uncomfortable truth is\b|\bwhat if i told you\b|\bplot twist\s*[:,]|\blet that sink in\b|\bread that again\b/gi,
+    why: 'Flatters the writer as the lone expert: "here\'s what I mean", "the part most people skip", "let that sink in".'
   },
   {
     id: 'binary-contrast',
@@ -227,6 +133,14 @@ const SLOP_RULES = [
     why: 'Phrases that delay the point: "it\'s worth noting", "when it comes to", "at the end of the day".'
   },
   {
+    id: 'metadiscourse',
+    name: 'Interpretive metadiscourse',
+    tier: 2,
+    category: 'Filler',
+    re: /\bthe key point is\b|\bas you can (?:see|tell)\b|\bthis (?:distinction|difference) matters\b|\bin other words\b|\bthat last part matters\b|\bmatters more than it (?:sounds|seems|looks)\b/gi,
+    why: 'Steps outside the subject to tell the reader what to notice: "the key point is", "as you can see", "in other words".'
+  },
+  {
     id: 'superficial-ing',
     name: 'Superficial -ing analysis',
     tier: 2,
@@ -239,8 +153,8 @@ const SLOP_RULES = [
     name: 'Colon reveal',
     tier: 2,
     category: 'Rhetorical setups',
-    re: /\b(The (best|worst) part|The kicker|The catch|The bottom line|The takeaway|The result|The problem|The twist)\s*\??:/gi,
-    why: 'Dramatic colon reveal: "The best part: ..." Fake drama, LLM rhythm.'
+    re: /\b(?:The (?:best|worst) part|The kicker|The catch|The bottom line|The takeaway|The result|The problem|The twist|The secret|The trick|The irony|The paradox|The real (?:reason|story|issue)|The (?:detail|thing|part|lesson|insight) that [^.!?\n:]{2,40})\s*\??:/gi,
+    why: 'Dramatic colon reveal: "The best part: …" / "The detail that makes it work: …" Fake drama, LLM rhythm.'
   },
   {
     id: 'negative-listing',
@@ -263,8 +177,8 @@ const SLOP_RULES = [
     name: 'Dramatic fragmentation',
     tier: 2,
     category: 'Rhetorical setups',
-    re: /\bThat'?s it\.\s*That'?s the\b|\bFull stop\./g,
-    why: '"That\'s it. That\'s the tweet." / "Full stop." Mic-drop fragments.'
+    re: /\bThat'?s it\.\s*That'?s the\b|\bFull stop\.|(?:^|[.!?]\s+|\n)And [^.!?\n]{1,48}\.\s*And [^.!?\n]{1,48}\./g,
+    why: '"That\'s it. That\'s the tweet." / "Full stop." / "X. And Y. And Z." Mic-drop fragments.'
   },
   {
     id: 'fake-strong-verbs',
@@ -297,6 +211,14 @@ const SLOP_RULES = [
     category: 'Structure',
     re: /\b(certainly!?|of course! let me|great question!|i hope this helps!?|let me know if you (need|have|want)|as an ai(?: language)? (?:model|assistant)|as of my last (?:update|training)|knowledge cutoff|here is the revised (?:article|draft|version|text))\b|contentReference|oaicite|turn0(?:search|news)|utm_source=/gi,
     why: 'Unedited chatbot voice or paste debris: "I hope this helps!", "as of my last update", oaicite.'
+  },
+  {
+    id: 'qa-setup',
+    name: 'Rhetorical Q&A setup',
+    tier: 2,
+    category: 'Rhetorical setups',
+    re: /\bthink about it\s*:|\bthe (?:result|reason|answer|secret|catch|problem|difference|upshot|truth)\?\s+\S|\bsound familiar\s*\?|\bsee the (?:problem|pattern|issue)\s*\?/gi,
+    why: '"Think about it:", "The result? Faster deploys.", "Sound familiar?" Self-answered setups. Drop them and make the point.'
   },
   {
     id: 'stop-start-imperative',
@@ -383,8 +305,8 @@ const SLOP_RULES = [
     name: 'Performative honesty',
     tier: 2,
     category: 'Rhetorical setups',
-    re: /\bI\s+(?:will\s+not|won['\u2019]t)\s+pretend\b|\b(?:I['\u2019]ll|let['\u2019]s)\s+be\s+(?:honest|blunt|real)\b|(?:^|[.!?]\s+|\n)(?:Honestly|Truthfully|Frankly)\s*,/gi,
-    why: 'Sincerity announced: “I won’t pretend”, “let’s be honest”, sentence-initial “Honestly,”. Skips “to be clear” / “Look,” as too common in humans.'
+    re: /\bI\s+(?:will\s+not|won['\u2019]t)\s+pretend\b|\b(?:I['\u2019]ll|let['\u2019]s)\s+be\s+(?:honest|blunt|real)\b|\blet me be (?:clear|blunt|honest|real|frank)\b|(?:^|[.!?]\s+|\n)(?:Honestly|Truthfully|Frankly)\s*,/gi,
+    why: 'Sincerity announced: “I won’t pretend”, “let me be clear”, “let’s be honest”. Skips bare “to be clear” / “Look,” as too common in humans.'
   },
   {
     id: 'thats-the-part',
@@ -447,7 +369,7 @@ const SLOP_RULES = [
     name: 'Repeated sentence openers',
     tier: 2,
     category: 'Rhythm',
-    find: makeAnaphoraFinder(),
+    find: makeAnaphoraFinder(ANAPHORA_SKIP),
     why: 'Three or more consecutive sentences starting on the same word: “Maybe X. Maybe Y. Maybe Z.” Pronouns skipped.'
   },
   {
@@ -518,28 +440,31 @@ const SLOP_RULES = [
   }
 ];
 
-// Em dashes: special doc-level handling, see spec. Only flag in bulk.
-const EM_DASH_RE = /—|\s--\s/g;
-const EM_DASH_RULE = {
-  id: 'em-dash', name: 'Em dash overuse', tier: 1, category: 'Rhythm',
-  why: 'Heavy em dash use on this page. A known LLM rhythm crutch, only flagged in bulk.'
-};
-const EM_DASH_WORDS_PER_DASH = 150;
-const EM_DASH_MIN_COUNT = 4;
+  const pack = {
+    id: 'en',
+    name: 'English',
+    locales: ['en', 'en-US', 'en-GB', 'en-AU', 'en-CA', 'en-IN', 'en-NZ', 'en-IE', 'en-ZA'],
+    stopwords: [
+      'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i', 'it', 'for',
+      'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at', 'this', 'but', 'his', 'by',
+      'from', 'they', 'we', 'say', 'her', 'she', 'or', 'an', 'will', 'my', 'one',
+      'all', 'would', 'there', 'their', 'what', 'so', 'if', 'about'
+    ],
+    rules: SLOP_RULES,
+    emDash: {
+      re: /—|\s--\s/g,
+      minCount: 4,
+      wordsPerDash: 150,
+      rule: {
+        id: 'em-dash',
+        name: 'Em dash overuse',
+        tier: 1,
+        category: 'Rhythm',
+        why: 'Heavy em dash use on this page. A known LLM rhythm crutch, only flagged in bulk.'
+      }
+    }
+  };
 
-const TIER_WEIGHT = { 3: 4, 2: 2, 1: 1 };
-
-const _slopRulesExport = { SLOP_RULES, EM_DASH_RE, EM_DASH_RULE, EM_DASH_WORDS_PER_DASH, EM_DASH_MIN_COUNT, TIER_WEIGHT };
-
-if (typeof globalThis !== 'undefined') {
-  globalThis.SLOP_RULES = SLOP_RULES;
-  globalThis.EM_DASH_RE = EM_DASH_RE;
-  globalThis.EM_DASH_RULE = EM_DASH_RULE;
-  globalThis.EM_DASH_WORDS_PER_DASH = EM_DASH_WORDS_PER_DASH;
-  globalThis.EM_DASH_MIN_COUNT = EM_DASH_MIN_COUNT;
-  globalThis.TIER_WEIGHT = TIER_WEIGHT;
-}
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = _slopRulesExport;
-}
+  register(pack);
+  if (typeof module !== 'undefined' && module.exports) module.exports = pack;
+})(typeof globalThis !== 'undefined' ? globalThis : this);

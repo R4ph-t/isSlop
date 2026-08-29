@@ -2,4 +2,4 @@ Toolbar and popup mark from [Lucide](https://lucide.dev) `scan-search` (ISC Lice
 
 https://lucide.dev/icons/scan-search
 
-`icon.svg` is that glyph on a rounded tile. Chrome’s toolbar needs PNG, so `icon16.png` / `icon48.png` / `icon128.png` are rasters of the same file.
+`icon.svg` is that glyph on a rounded tile. Chrome’s toolbar needs PNG, so `icon16.png` / `icon48.png` / `icon128.png` are rasters of the same file (drawn at native size — do not use `qlmanage`, which pads the glyph into a white square).

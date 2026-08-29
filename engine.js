@@ -1,17 +1,35 @@
-// Dual-env: browser global + Node. Requires rules.js to be loaded first in the browser.
+// Dual-env: browser global + Node. Packs must be loaded first in the browser
+// (finders.js → packs/registry.js → packs/<id>.js). Node loads them here.
 
-const _rules = (typeof SLOP_RULES !== 'undefined')
-  ? {
-      SLOP_RULES,
-      EM_DASH_RE,
-      EM_DASH_RULE,
-      EM_DASH_WORDS_PER_DASH,
-      EM_DASH_MIN_COUNT,
-      TIER_WEIGHT
-    }
-  : require('./rules.js');
-
+const TIER_WEIGHT = { 3: 4, 2: 2, 1: 1 };
 const SCORE_MULTIPLIER = 25;
+
+function packsLoaded() {
+  return typeof globalThis !== 'undefined'
+    && Array.isArray(globalThis.SLOP_PACKS)
+    && globalThis.SLOP_PACKS.length > 0;
+}
+
+function ensurePacksLoaded() {
+  if (packsLoaded()) return;
+  if (typeof require !== 'function') return;
+  require('./finders.js');
+  const { SLOP_PACK_IDS } = require('./packs/registry.js');
+  for (let i = 0; i < SLOP_PACK_IDS.length; i++) {
+    require('./packs/' + SLOP_PACK_IDS[i] + '.js');
+  }
+}
+
+function currentPack(pack) {
+  if (pack) return pack;
+  ensurePacksLoaded();
+  if (typeof SlopPacks !== 'undefined' && typeof SlopPacks.current === 'function') {
+    return SlopPacks.current();
+  }
+  return require('./packs/registry.js').activePack();
+}
+
+ensurePacksLoaded();
 
 function countWords(text) {
   if (!text) return 0;
@@ -22,7 +40,7 @@ function countWords(text) {
 
 function findMatches(text, rules) {
   const matches = [];
-  const list = rules || _rules.SLOP_RULES;
+  const list = rules || currentPack().rules;
   for (const rule of list) {
     if (typeof rule.find === 'function') {
       const found = rule.find(text) || [];
@@ -66,8 +84,10 @@ function mergeOverlaps(matches) {
   return merged;
 }
 
-function countEmDashes(text) {
-  const re = _rules.EM_DASH_RE;
+function countEmDashes(text, pack) {
+  const cfg = currentPack(pack) && currentPack(pack).emDash;
+  if (!cfg || !cfg.re) return 0;
+  const re = cfg.re;
   re.lastIndex = 0;
   let n = 0;
   let m;
@@ -78,14 +98,18 @@ function countEmDashes(text) {
   return n;
 }
 
-function emDashShouldFlag(dashCount, wordCount) {
-  if (dashCount < _rules.EM_DASH_MIN_COUNT) return false;
-  return dashCount > wordCount / _rules.EM_DASH_WORDS_PER_DASH;
+function emDashShouldFlag(dashCount, wordCount, pack) {
+  const cfg = currentPack(pack) && currentPack(pack).emDash;
+  if (!cfg) return false;
+  if (dashCount < cfg.minCount) return false;
+  return dashCount > wordCount / cfg.wordsPerDash;
 }
 
-function findEmDashMatches(text) {
+function findEmDashMatches(text, pack) {
+  const cfg = currentPack(pack) && currentPack(pack).emDash;
+  if (!cfg || !cfg.re) return [];
   const matches = [];
-  const re = _rules.EM_DASH_RE;
+  const re = cfg.re;
   re.lastIndex = 0;
   let m;
   while ((m = re.exec(text)) !== null) {
@@ -96,7 +120,7 @@ function findEmDashMatches(text) {
     matches.push({
       start: m.index,
       end: m.index + m[0].length,
-      rule: _rules.EM_DASH_RULE
+      rule: cfg.rule
     });
   }
   return matches;
@@ -106,7 +130,7 @@ function scoreFromHits(matches, wordCount) {
   if (!wordCount) return 0;
   let weightedHits = 0;
   for (const m of matches) {
-    weightedHits += _rules.TIER_WEIGHT[m.rule.tier] || 0;
+    weightedHits += TIER_WEIGHT[m.rule.tier] || 0;
   }
   const density = (weightedHits / wordCount) * 100;
   const score = Math.round(density * SCORE_MULTIPLIER);
@@ -130,7 +154,7 @@ function summarize(matches, wordCount) {
     const cat = m.rule.category;
     const prev = catMap.get(cat) || { name: cat, count: 0, weight: 0 };
     prev.count += 1;
-    prev.weight += _rules.TIER_WEIGHT[tier] || 0;
+    prev.weight += TIER_WEIGHT[tier] || 0;
     catMap.set(cat, prev);
   }
   const categories = Array.from(catMap.values()).sort((a, b) => b.weight - a.weight || b.count - a.count);
@@ -143,17 +167,19 @@ function summarize(matches, wordCount) {
   };
 }
 
-function scanText(text) {
+function scanText(text, pack) {
+  pack = currentPack(pack);
   const wordCount = countWords(text);
-  let matches = mergeOverlaps(findMatches(text, _rules.SLOP_RULES));
-  if (emDashShouldFlag(countEmDashes(text), wordCount)) {
-    matches = mergeOverlaps(matches.concat(findEmDashMatches(text)));
+  let matches = mergeOverlaps(findMatches(text, pack.rules));
+  if (emDashShouldFlag(countEmDashes(text, pack), wordCount, pack)) {
+    matches = mergeOverlaps(matches.concat(findEmDashMatches(text, pack)));
   }
   return { matches, ...summarize(matches, wordCount) };
 }
 
 const SlopEngine = {
   SCORE_MULTIPLIER,
+  TIER_WEIGHT,
   countWords,
   findMatches,
   mergeOverlaps,
@@ -163,7 +189,8 @@ const SlopEngine = {
   scoreFromHits,
   scoreLabel,
   summarize,
-  scanText
+  scanText,
+  currentPack
 };
 
 if (typeof globalThis !== 'undefined') {
