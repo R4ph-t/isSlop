@@ -1,4 +1,5 @@
-:root {
+:root,
+html[data-theme="light"] {
   --ss-panel: #ffffff;
   --ss-line: #e5e2dd;
   --ss-raise: #f3f1ed;
@@ -19,23 +20,21 @@
   --ss-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ss-panel: #1c1c1c;
-    --ss-line: #2e2e2e;
-    --ss-raise: #262626;
-    --ss-text: #ededea;
-    --ss-dim: #a3a3a0;
-    --ss-faint: #8a8a86;
-    --ss-quiet: #77776f;
-    --ss-btn-bd: #3a3a3a;
-    --ss-btn-fg: #d4d4d0;
-    --ss-badge-fg: #ffb27a;
-    --ss-badge-bd: #4a3a24;
-    --ss-badge-bg: #242018;
-    --ss-onaccent: #1c1c1c;
-    --ss-scroll: #5a5a56;
-  }
+html[data-theme="dark"] {
+  --ss-panel: #1c1c1c;
+  --ss-line: #2e2e2e;
+  --ss-raise: #262626;
+  --ss-text: #ededea;
+  --ss-dim: #a3a3a0;
+  --ss-faint: #8a8a86;
+  --ss-quiet: #77776f;
+  --ss-btn-bd: #3a3a3a;
+  --ss-btn-fg: #d4d4d0;
+  --ss-badge-fg: #ffb27a;
+  --ss-badge-bd: #4a3a24;
+  --ss-badge-bg: #242018;
+  --ss-onaccent: #1c1c1c;
+  --ss-scroll: #5a5a56;
 }
 
 /* Vendored so the popup never hits the network. Drop the two woff2 files in
@@ -65,7 +64,10 @@ html {
   color-scheme: light;
   scrollbar-width: none;
   background: var(--ss-panel);
-  border-radius: 12px;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 html:has(body.is-scanned) {
@@ -77,14 +79,8 @@ html::-webkit-scrollbar {
   height: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-}
-
 body {
-  width: 340px;
+  width: 400px;
   max-height: 600px;
   overflow: hidden;
   scrollbar-width: none;
@@ -93,8 +89,6 @@ body {
   background: var(--ss-panel);
   color: var(--ss-text);
   font: 400 13px/1.5 var(--ss-sans);
-  border: 1px solid var(--ss-line);
-  border-radius: 12px;
 }
 
 body::-webkit-scrollbar {
@@ -128,6 +122,8 @@ body.is-scanned {
 
 header {
   flex: none;
+  position: relative;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -159,7 +155,6 @@ h1 {
 }
 
 .info-wrap {
-  position: relative;
   flex: none;
 }
 
@@ -191,14 +186,15 @@ h1 {
   position: absolute;
   z-index: 30;
   top: calc(100% + 8px);
-  left: 0;
-  width: 228px;
+  left: 12px;
+  right: 12px;
+  width: auto;
   padding: 11px 12px 10px;
   background: var(--ss-panel);
   color: var(--ss-quiet);
   font: 400 11.5px/1.45 var(--ss-sans);
   border: 1px solid var(--ss-line);
-  border-radius: 4px;
+  border-radius: 6px;
   box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.45);
 }
 
@@ -228,8 +224,8 @@ h1 {
   letter-spacing: 0.07em;
   color: var(--ss-faint);
   background: var(--ss-raise);
-  border-radius: 2px;
-  padding: 5px 7px;
+  border-radius: 999px;
+  padding: 5px 8px;
 }
 
 /* ── actions ───────────────────────────────────────────────────────── */
@@ -250,7 +246,7 @@ button {
   height: 38px;
   padding: 0 14px;
   border: 0;
-  border-radius: 3px;
+  border-radius: 6px;
   background: var(--ss-accent);
   color: var(--ss-onaccent);
   font: 700 13.5px/1 var(--ss-sans);
@@ -286,7 +282,7 @@ button:disabled {
 }
 
 button.ghost {
-  background: var(--ss-raise);
+  background: var(--ss-panel);
   color: var(--ss-btn-fg);
   border: 1px solid var(--ss-btn-bd);
   font-weight: 500;
@@ -388,10 +384,48 @@ button.ghost:hover {
 
 .levels-head {
   flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 12px 18px 0;
 }
 
-/* ── levels ────────────────────────────────────────────────────────── */
+.scheme-toggle {
+  display: flex;
+  flex: none;
+  padding: 2px;
+  background: var(--ss-raise);
+  border: 1px solid var(--ss-line);
+  border-radius: 999px;
+}
+
+button.scheme-opt {
+  height: 22px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ss-quiet);
+  font: 600 11px/1 var(--ss-sans);
+  box-shadow: none;
+}
+
+button.scheme-opt:hover {
+  background: transparent;
+  color: var(--ss-text);
+}
+
+button.scheme-opt:active {
+  background: transparent;
+}
+
+button.scheme-opt.is-on,
+button.scheme-opt.is-on:hover,
+button.scheme-opt.is-on:active {
+  background: var(--ss-accent);
+  color: #ffffff;
+}
 
 .levels {
   list-style: none;
@@ -411,27 +445,41 @@ button.ghost:hover {
 
 .swatch {
   text-align: center;
-  padding: 3px 6px;
-  border-radius: 2px;
+  padding: 4px 8px;
+  border-radius: 4px;
   font-size: 12.5px;
-  color: #141414;
-  background-color: #f4f2ef;
-  background-image: linear-gradient(99deg,
-    rgba(var(--ss-ink), 0) 1%,
-    rgba(var(--ss-ink), var(--sw)) 4%,
-    rgba(var(--ss-ink), calc(var(--sw) * 0.84)) 96%,
-    rgba(var(--ss-ink), 0) 99%);
+  font-weight: 700;
+  color: #3a2416;
 }
 
-.t3 .swatch { --sw: 0.72; }
-.t2 .swatch { --sw: 0.4; }
-.t1 .swatch { --sw: 0.13; }
+.t3 .swatch {
+  background: #ff6a00;
+  color: #ffffff;
+}
 
-@media (prefers-color-scheme: dark) {
-  .swatch {
-    color: #ededea;
-    background-color: #2a2a28;
-  }
+.t2 .swatch {
+  background: #ffc196;
+}
+
+.t1 .swatch {
+  background: #ffe4d2;
+}
+
+html[data-theme="dark"] .swatch {
+  color: #ededea;
+}
+
+html[data-theme="dark"] .t3 .swatch {
+  background: #ff8a3d;
+  color: #1c1c1c;
+}
+
+html[data-theme="dark"] .t2 .swatch {
+  background: rgba(255, 150, 58, 0.38);
+}
+
+html[data-theme="dark"] .t1 .swatch {
+  background: rgba(255, 150, 58, 0.14);
 }
 
 .levels .desc {
@@ -442,6 +490,26 @@ button.ghost:hover {
 
 .levels .n {
   font: 700 14px/1 var(--ss-mono);
+}
+
+.blend-note {
+  display: flex;
+  grid-template-columns: none;
+  gap: 7px;
+  align-items: flex-start;
+  padding-top: 8px;
+  margin-top: 2px;
+  border-top: 1px solid var(--ss-line);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ss-quiet);
+}
+
+.blend-note svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  margin-top: 2px;
 }
 
 /* ── findings ──────────────────────────────────────────────────────── */
@@ -541,7 +609,7 @@ button.ghost:hover {
 }
 
 .finding .snippet {
-  font: italic 12.5px/1.4 ui-serif, Iowan Old Style, Palatino, Georgia, serif;
+  font: 400 12.5px/1.4 var(--ss-sans);
   color: var(--ss-quiet);
   white-space: nowrap;
   overflow: hidden;
@@ -561,7 +629,7 @@ button.ghost:hover {
   color: var(--ss-badge-fg);
   border: 1px solid var(--ss-badge-bd);
   background: var(--ss-badge-bg);
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 4px 6px;
 }
 

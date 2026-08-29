@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "SlopSpotter",
+  "name": "isSlop",
   "version": "1.0.0",
   "description": "Highlight likely AI slop on any page. Nothing leaves the browser. No network, no tracking.",
   "permissions": ["activeTab", "scripting"],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "SlopSpotter",
+    "default_title": "isSlop",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -17,5 +17,11 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/manrope-var.woff2", "fonts/jetbrains-mono-var.woff2"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

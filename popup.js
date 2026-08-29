@@ -143,7 +143,7 @@ function render(summary, elapsedMs) {
   document.getElementById('label').textContent = displayLabel(summary.label);
   document.getElementById('words').textContent = Number(summary.wordCount || 0).toLocaleString('en-US');
   const elapsed = document.getElementById('elapsed');
-  elapsed.textContent = elapsedMs != null ? ' · ' + (elapsedMs / 1000).toFixed(1) + 's' : '';
+  elapsed.textContent = elapsedMs != null ? ' • ' + (elapsedMs / 1000).toFixed(1) + 's' : '';
 
   [['t3', t3], ['t2', t2], ['t1', t1], ['t3b', t3], ['t2b', t2], ['t1b', t1],
    ['total', total]].forEach(function (pair) {
@@ -157,7 +157,7 @@ function render(summary, elapsedMs) {
   if (note) {
     if (summary.pack && summary.pack.verified === false) {
       note.hidden = false;
-      note.textContent = (summary.pack.name || summary.pack.id) + ' pack is unverified — treat hits as drafts until a native speaker reviews them.';
+      note.textContent = (summary.pack.name || summary.pack.id) + ' pack is unverified. Treat hits as drafts until a native speaker reviews them.';
     } else {
       note.hidden = true;
       note.textContent = '';
@@ -223,6 +223,33 @@ document.getElementById('findings').addEventListener('click', async function (e)
   }
 });
 
+function currentScheme() {
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+
+function applyScheme(scheme) {
+  const next = scheme === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  document.documentElement.style.colorScheme = next;
+  document.querySelectorAll('.scheme-opt').forEach(function (btn) {
+    btn.classList.toggle('is-on', btn.dataset.scheme === next);
+  });
+  const blend = document.getElementById('blend-text');
+  if (blend) {
+    blend.textContent = next === 'dark'
+      ? 'Dark page: ink screens, so the mark lightens instead of punching a hole.'
+      : 'Light page: ink multiplies, so the text underneath stays fully legible.';
+  }
+}
+
+applyScheme(currentScheme());
+
+document.querySelector('.scheme-toggle').addEventListener('click', function (e) {
+  const btn = e.target.closest('.scheme-opt');
+  if (!btn) return;
+  applyScheme(btn.dataset.scheme);
+});
+
 if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
   const ver = chrome.runtime.getManifest().version;
   const el = document.getElementById('ext-version');
@@ -230,15 +257,19 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifes
 }
 
 if (new URLSearchParams(location.search).has('preview')) {
+  applyScheme('light');
   render({
     score: 68,
     label: 'Heavy slop',
     wordCount: 1942,
     tiers: { 1: 3, 2: 3, 3: 4 },
     findings: [
-      { id: 'p1', name: 'Closing platitude', snippet: 'At the end of the day, the possibilities…', tier: 3 },
-      { id: 'p2', name: 'Template opener', snippet: "In today's rapidly evolving…", tier: 3 },
-      { id: 'p3', name: 'Not-but antithesis', snippet: "It's not just a tool. It's a…", tier: 3 }
+      { id: 'p1', name: 'Closing platitude', snippet: 'At the end of the day, the possibilities are truly endless.', tier: 3 },
+      { id: 'p2', name: 'Template opener', snippet: "In today's rapidly evolving digital landscape", tier: 3 },
+      { id: 'p3', name: 'Signature vocabulary', snippet: "Let's delve into the rich tapestry of…", tier: 3 },
+      { id: 'p4', name: 'Hollow tribute', snippet: 'a testament to the power of…', tier: 3 }
     ]
   }, 4100);
+} else {
+  runScan();
 }

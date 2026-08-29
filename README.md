@@ -1,4 +1,4 @@
-# SlopSpotter
+# isSlop
 
 Chrome extension that highlights likely AI-generated "slop" **inline on the page**, with a tooltip naming the rule that fired. Nothing leaves the browser. No network, accounts, tracking, or ML APIs.
 
@@ -9,8 +9,8 @@ Toolbar and popup icons are from [Lucide](https://lucide.dev) (`scan-search`, `e
 1. Open `chrome://extensions`
 2. Turn on **Developer mode**
 3. Click **Load unpacked** and select this folder
-4. Open any http(s) page, click the toolbar icon, hit **Scan page**
-5. Hover a highlight for the rule name and why it fired. **Clear** removes marks.
+4. Open any http(s) page and click the toolbar icon. The page is scanned as the popup opens.
+5. Hover a highlight for the rule name and why it fired. **Hide highlights** removes marks. **Rescan** if the page changed.
 
 Chrome's own pages (`chrome://…`, the Web Store) cannot be scripted.
 

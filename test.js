@@ -48,7 +48,7 @@ const HUMAN = padToWords(
   200
 );
 
-console.log('SlopSpotter engine tests\n');
+console.log('isSlop engine tests\n');
 
 console.log('0. English pack');
 {

@@ -1,4 +1,4 @@
-/* SlopSpotter — marker highlights.
+/* isSlop — marker highlights.
    One shape at three ink strengths. Per-mark jitter (--ss-j, --ss-ang) is set
    inline by content.js so no two passes look stamped. */
 
@@ -59,6 +59,20 @@
 
 /* ── tooltip: light page (default), dark page via .slopspotter-on-dark ── */
 
+@font-face {
+  font-family: Manrope;
+  src: url("fonts/manrope-var.woff2") format("woff2");
+  font-weight: 400 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/jetbrains-mono-var.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 .slopspotter-tip {
   all: initial;
   box-sizing: border-box;
@@ -69,7 +83,7 @@
   padding: 14px 16px 12px;
   background: #ffffff;
   color: #17171a;
-  font: 13px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font: 13px/1.5 Manrope, ui-sans-serif, system-ui, -apple-system, sans-serif;
   border: 1px solid #e5e2dd;
   border-radius: 12px;
   box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.28);
@@ -92,6 +106,8 @@
 
 .slopspotter-tip-name {
   display: block;
+  flex: 1;
+  min-width: 0;
   font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.025em;
@@ -103,8 +119,9 @@
   display: inline-flex;
   flex: none;
   align-items: center;
-  font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 700 10px/1 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: #b34e00;
   border: 1px solid #f0d5bb;
   background: #fdf3ea;
@@ -134,15 +151,16 @@
 
 .slopspotter-tip-kicker {
   display: block;
-  font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-  letter-spacing: 0.12em;
+  font: 700 10px/1 Manrope, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: #8d8d88;
   margin-bottom: 6px;
 }
 
 .slopspotter-tip-try {
   display: block;
-  font: italic 14px/1.45 ui-serif, Iowan Old Style, Palatino, Georgia, serif;
+  font: italic 600 14px/1.45 Iowan Old Style, Palatino, Georgia, ui-serif, serif;
   color: #c05621;
 }
 
@@ -151,13 +169,16 @@
   justify-content: space-between;
   gap: 12px;
   margin-top: 12px;
+}
+
+.slopspotter-tip:not(:has(.slopspotter-tip-instead:not([hidden]))) .slopspotter-tip-foot {
   padding-top: 10px;
   border-top: 1px solid #e5e2dd;
 }
 
 .slopspotter-tip-meta {
   display: block;
-  font: 400 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 400 10px/1 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing: 0.08em;
   color: #8d8d88;
   text-transform: uppercase;
@@ -185,7 +206,7 @@
 }
 
 .slopspotter-on-dark .slopspotter-tip-instead,
-.slopspotter-on-dark .slopspotter-tip-foot {
+.slopspotter-on-dark .slopspotter-tip:not(:has(.slopspotter-tip-instead:not([hidden]))) .slopspotter-tip-foot {
   border-top-color: #2e2e2e;
 }
 

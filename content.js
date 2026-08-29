@@ -203,7 +203,7 @@
       metas[0].textContent = marked === 1 ? '1 flagged word' : marked + ' flagged words';
     }
     if (metas[1]) {
-      metas[1].textContent = times === 1 ? '1x on this page' : times + 'x on this page';
+      metas[1].textContent = times === 1 ? '1× on this page' : times + '× on this page';
     }
   }
 

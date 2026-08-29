@@ -140,7 +140,7 @@
       re: esRe(
         String.raw`hacer sentido|en base a|aplicar para (?:un |el |una )?(?:puesto|trabajo|beca)|pensar fuera de la caja`
       ),
-      why: 'Calcos: «hacer sentido», «en base a», «pensar fuera de la caja». Puede picar español humano regional — pack no verificado.'
+      why: 'Calcos: «hacer sentido», «en base a», «pensar fuera de la caja». Puede picar español humano regional. Pack no verificado.'
     },
     {
       id: 'gerundio',

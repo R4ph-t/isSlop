@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>SlopSpotter</title>
+  <title>isSlop</title>
+  <script>
+    document.documentElement.dataset.theme =
+      matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  </script>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -13,9 +17,9 @@
         <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
       </svg>
     </span>
-    <h1>SlopSpotter</h1>
+    <h1>isSlop</h1>
     <div class="info-wrap">
-      <button type="button" class="info-btn" aria-label="About SlopSpotter" aria-describedby="info-tip">
+      <button type="button" class="info-btn" aria-label="About isSlop" aria-describedby="info-tip">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="10" />
           <path d="M12 16v-4" />
@@ -54,11 +58,23 @@
 
     <div class="levels-head">
       <span class="kicker">HIGHLIGHTER LEVELS</span>
+      <div class="scheme-toggle" role="group" aria-label="Popup appearance">
+        <button type="button" class="scheme-opt" data-scheme="light">Light</button>
+        <button type="button" class="scheme-opt" data-scheme="dark">Dark</button>
+      </div>
     </div>
     <ul class="levels">
-      <li class="t3"><span class="swatch">Heavy</span><span class="desc">Hollow filler — cut it</span><span class="n" id="t3b">0</span></li>
-      <li class="t2"><span class="swatch">Medium</span><span class="desc">Borrowed cadence — rewrite</span><span class="n" id="t2b">0</span></li>
-      <li class="t1"><span class="swatch">Light</span><span class="desc">Padding &amp; hedging — trim</span><span class="n" id="t1b">0</span></li>
+      <li class="t3"><span class="swatch">Heavy</span><span class="desc">Hollow filler. Cut it.</span><span class="n" id="t3b">0</span></li>
+      <li class="t2"><span class="swatch">Medium</span><span class="desc">Borrowed cadence. Rewrite.</span><span class="n" id="t2b">0</span></li>
+      <li class="t1"><span class="swatch">Light</span><span class="desc">Padding &amp; hedging. Trim.</span><span class="n" id="t1b">0</span></li>
+      <li class="blend-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4" />
+          <path d="M12 8h.01" />
+        </svg>
+        <span id="blend-text">Light page: ink multiplies, so the text underneath stays fully legible.</span>
+      </li>
     </ul>
 
     <div class="findings-head">
