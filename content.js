@@ -4,7 +4,8 @@
   }
 
   const SKIP_TAGS = new Set([
-    'SCRIPT', 'STYLE', 'NOSCRIPT', 'SVG', 'TEXTAREA', 'INPUT', 'SELECT', 'CODE', 'PRE'
+    'SCRIPT', 'STYLE', 'NOSCRIPT', 'SVG', 'TEXTAREA', 'INPUT', 'SELECT', 'CODE', 'PRE',
+    'META', 'TEMPLATE', 'TITLE', 'LINK', 'HEAD', 'SLOT', 'SOURCE', 'TRACK'
   ]);
   const MARK_CLASS = 'slopspotter-mark';
   const TIP_ID = 'slopspotter-tip';
@@ -31,18 +32,30 @@
     return false;
   }
 
+  // TreeWalker sees display:none, <meta> in body, aria-hidden SEO blocks, etc.
+  // Those are not on the page, so they must not become findings.
+  function isUnrendered(el) {
+    while (el && el.nodeType === 1) {
+      if (skipNode(el)) return true;
+      if (el.hidden) return true;
+      if (el.getAttribute('aria-hidden') === 'true') return true;
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return true;
+      if (cs.contentVisibility === 'hidden') return true;
+      if (cs.opacity === '0') return true;
+      if (!parseFloat(cs.fontSize)) return true;
+      el = el.parentElement;
+    }
+    return false;
+  }
+
   function collectTextNodes(root) {
     const nodes = [];
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: function (node) {
         const parent = node.parentElement;
         if (!parent) return NodeFilter.FILTER_REJECT;
-        if (skipNode(parent)) return NodeFilter.FILTER_REJECT;
-        let el = parent;
-        while (el) {
-          if (skipNode(el)) return NodeFilter.FILTER_REJECT;
-          el = el.parentElement;
-        }
+        if (isUnrendered(parent)) return NodeFilter.FILTER_REJECT;
         const text = node.nodeValue || '';
         if (text.length < MIN_TEXT_LEN) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
@@ -117,15 +130,31 @@
     }
   }
 
-  function fragmentRect(el, x, y) {
+  function usableRects(el) {
+    const out = [];
     const rects = el.getClientRects();
     for (let i = 0; i < rects.length; i++) {
-      const r = rects[i];
-      if (x >= r.left - 1 && x <= r.right + 1 && y >= r.top - 1 && y <= r.bottom + 1) {
-        return r;
+      if (rects[i].width >= 1 && rects[i].height >= 1) out.push(rects[i]);
+    }
+    if (!out.length) {
+      const box = el.getBoundingClientRect();
+      if (box.width >= 1 && box.height >= 1) out.push(box);
+    }
+    return out;
+  }
+
+  function pickRect(el, x, y) {
+    const rects = usableRects(el);
+    if (!rects.length) return null;
+    if (x != null && y != null) {
+      for (let i = 0; i < rects.length; i++) {
+        const r = rects[i];
+        if (x >= r.left - 1 && x <= r.right + 1 && y >= r.top - 1 && y <= r.bottom + 1) {
+          return r;
+        }
       }
     }
-    return rects[0] || el.getBoundingClientRect();
+    return rects[0];
   }
 
   /* ── tooltip ───────────────────────────────────────────────────────── */
@@ -238,8 +267,12 @@
   function showTipFor(mark) {
     const tip = getTip();
     fillTip(tip, mark);
-    const rects = mark.getClientRects();
-    placeTip(tip, rects[0] || mark.getBoundingClientRect());
+    const rect = pickRect(mark);
+    if (!rect) {
+      tip.hidden = true;
+      return;
+    }
+    placeTip(tip, rect);
   }
 
   function markFromEvent(e) {
@@ -259,7 +292,8 @@
     const mark = markFromEvent(e);
     const tip = document.getElementById(TIP_ID);
     if (!mark || !tip || tip.hidden) return;
-    placeTip(tip, fragmentRect(mark, e.clientX, e.clientY));
+    const rect = pickRect(mark, e.clientX, e.clientY);
+    if (rect) placeTip(tip, rect);
   });
 
   listen(document, 'pointerout', function (e) {

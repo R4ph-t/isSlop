@@ -75,6 +75,7 @@
 
 .slopspotter-tip {
   all: initial;
+  display: block;
   box-sizing: border-box;
   position: fixed;
   z-index: 2147483647;
