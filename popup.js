@@ -208,8 +208,16 @@ async function hideHighlights() {
   }
 }
 
-hideBtn.addEventListener('click', hideHighlights);
-rescanBtn.addEventListener('click', runScan);
+document.getElementById('close').addEventListener('click', async function () {
+  try {
+    const tab = await activeTab();
+    chrome.tabs.sendMessage(tab.id, { type: 'ISSLOP_PANEL_CLOSE' }, function () {
+      void chrome.runtime.lastError;
+    });
+  } catch (err) {
+    /* not on a page */
+  }
+});
 
 document.getElementById('findings').addEventListener('click', async function (e) {
   const btn = e.target.closest('.finding');
@@ -230,16 +238,13 @@ function currentScheme() {
 function applyScheme(scheme) {
   const next = scheme === 'dark' ? 'dark' : 'light';
   document.documentElement.dataset.theme = next;
-  document.documentElement.style.colorScheme = next;
+  const shell = document.querySelector('.shell');
+  if (shell) shell.style.colorScheme = next;
   document.querySelectorAll('.scheme-opt').forEach(function (btn) {
     btn.classList.toggle('is-on', btn.dataset.scheme === next);
   });
-  const blend = document.getElementById('blend-text');
-  if (blend) {
-    blend.textContent = next === 'dark'
-      ? 'Dark page: ink screens, so the mark lightens instead of punching a hole.'
-      : 'Light page: ink multiplies, so the text underneath stays fully legible.';
-  }
+  const levels = document.getElementById('levels');
+  if (levels) levels.classList.toggle('slopspotter-on-dark', next === 'dark');
 }
 
 applyScheme(currentScheme());
@@ -272,4 +277,27 @@ if (new URLSearchParams(location.search).has('preview')) {
   }, 4100);
 } else {
   runScan();
+}
+
+function reportPanelSize() {
+  if (window.parent === window) return;
+  const shell = document.querySelector('.shell');
+  if (!shell || typeof chrome === 'undefined' || !chrome.tabs) return;
+  const h = Math.ceil(shell.getBoundingClientRect().height);
+  if (!h) return;
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    const tab = tabs && tabs[0];
+    if (!tab || tab.id == null) return;
+    chrome.tabs.sendMessage(tab.id, { type: 'ISSLOP_PANEL_SIZE', height: h }, function () {
+      void chrome.runtime.lastError;
+    });
+  });
+}
+
+if (window.parent !== window) {
+  const shell = document.querySelector('.shell');
+  if (shell && typeof ResizeObserver === 'function') {
+    new ResizeObserver(reportPanelSize).observe(shell);
+  }
+  window.addEventListener('load', reportPanelSize);
 }

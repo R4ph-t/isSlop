@@ -4,8 +4,10 @@
   "version": "1.0.0",
   "description": "Highlight likely AI slop on any page. Nothing leaves the browser. No network, no tracking.",
   "permissions": ["activeTab", "scripting"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "isSlop",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -20,7 +22,15 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["fonts/manrope-var.woff2", "fonts/jetbrains-mono-var.woff2"],
+      "resources": [
+        "popup.html",
+        "popup.css",
+        "highlight.css",
+        "popup.js",
+        "packs/*.js",
+        "fonts/manrope-var.woff2",
+        "fonts/jetbrains-mono-var.woff2"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

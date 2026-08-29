@@ -7,9 +7,11 @@
     document.documentElement.dataset.theme =
       matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   </script>
+  <link rel="stylesheet" href="highlight.css" />
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
+  <div class="shell">
   <header>
     <span class="logo" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -33,6 +35,12 @@
       </div>
     </div>
     <span class="words mono"><span id="words">0</span> WORDS<span id="elapsed"></span></span>
+    <button type="button" class="close-btn" id="close" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </svg>
+    </button>
   </header>
 
   <p id="status" class="status" hidden></p>
@@ -63,18 +71,10 @@
         <button type="button" class="scheme-opt" data-scheme="dark">Dark</button>
       </div>
     </div>
-    <ul class="levels">
-      <li class="t3"><span class="swatch">Heavy</span><span class="desc">Hollow filler. Cut it.</span><span class="n" id="t3b">0</span></li>
-      <li class="t2"><span class="swatch">Medium</span><span class="desc">Borrowed cadence. Rewrite.</span><span class="n" id="t2b">0</span></li>
-      <li class="t1"><span class="swatch">Light</span><span class="desc">Padding &amp; hedging. Trim.</span><span class="n" id="t1b">0</span></li>
-      <li class="blend-note">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 16v-4" />
-          <path d="M12 8h.01" />
-        </svg>
-        <span id="blend-text">Light page: ink multiplies, so the text underneath stays fully legible.</span>
-      </li>
+    <ul class="levels" id="levels">
+      <li class="t3"><span class="swatch slopspotter-mark slopspotter-t3">Heavy</span><span class="desc">Hollow filler. Cut it.</span><span class="n" id="t3b">0</span></li>
+      <li class="t2"><span class="swatch slopspotter-mark slopspotter-t2">Medium</span><span class="desc">Borrowed cadence. Rewrite.</span><span class="n" id="t2b">0</span></li>
+      <li class="t1"><span class="swatch slopspotter-mark slopspotter-t1">Light</span><span class="desc">Padding &amp; hedging. Trim.</span><span class="n" id="t1b">0</span></li>
     </ul>
 
     <div class="findings-head">
@@ -105,6 +105,7 @@
       </svg>
       Rescan
     </button>
+  </div>
   </div>
 
   <script src="packs/registry.js"></script>
