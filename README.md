@@ -115,3 +115,30 @@ node test.js
 ```
 
 Packs, `finders.js`, and `engine.js` are dual-environment (browser global + Node) so the same match/merge/score logic runs in tests and in the content script.
+
+## Release (Chrome Web Store)
+
+Version lives in one place: `manifest.json` `"version"`. Chrome only accepts `x.y.z` integers (no `-beta`). The popup reads it via `chrome.runtime.getManifest()`.
+
+```
+node scripts/release.js pack              # zip current version → dist/islop-x.y.z.zip
+node scripts/release.js patch|minor|major # bump, retest, zip
+```
+
+That zip has `manifest.json` at the archive root (required). It excludes `.git`, tests, SVGs, and this README.
+
+Then:
+
+1. One-time: [Chrome Web Store developer account](https://chrome.google.com/webstore/devconsole) ($5).
+2. **New item** (or **Package → Upload new package** for an update). Upload `dist/islop-x.y.z.zip`. Each upload must be a higher version than the last.
+3. Store listing: name, short + detailed description, 1280×800 or 640×400 screenshots, 440×280 small promo tile, 128px icon (already in the zip).
+4. Privacy tab: single purpose, data use (none leaves the browser), justify `activeTab` and `scripting`, remote code = No. You need a public privacy-policy URL.
+5. Submit for review.
+
+After a bump, commit `manifest.json`, then tag so git matches the store:
+
+```
+git tag v1.0.1
+git push && git push --tags
+```
+
