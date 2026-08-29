@@ -40,40 +40,69 @@ The original catalog was the build spec. Rules now also draw from:
 
 These are **tells**, not proof of origin. Humans write some of them; density is the product.
 
-## Language packs
+## How to add a pack
 
-Rules live in `packs/<id>.js`. English is `packs/en.js`. French is `packs/fr.js`. The engine does not hardcode a language. Scan picks a pack from `document.documentElement.lang`, then a stopword vote on the page text.
+A pack is one language. English is not special — it is `packs/en.js`. French is `packs/fr.js`. The engine never names a language; scan picks a pack from `document.documentElement.lang`, then a stopword vote on the page text if `lang` is missing.
 
-To add a language:
+The only list a contributor edits besides the new file is `SLOP_PACK_IDS` in `packs/registry.js`. Popup inject and tests load from that array. Do not edit `popup.js` or `engine.js` to add a language.
 
-1. Copy `packs/en.js` to `packs/<id>.js`
-2. Set `id`, `name`, `locales`, `stopwords`, and native `rules` (do not translate the English catalog)
-3. Add `'<id>'` to `SLOP_PACK_IDS` in `packs/registry.js`
-4. Add slop + human fixtures in `test.js` (human must stay at score 0)
-5. Run `node test.js`
+### Steps
 
-## How to add a rule
+1. Copy `packs/fr.js` (better starting point than English if the language has accents) to `packs/<id>.js`. `<id>` is the ISO 639-1 code: `es`, `de`, `pt`.
+2. Keep the IIFE wrapper (`SlopFinders` / `registerPack` / `module.exports`). Change `id`, `name`, `locales`, and `stopwords`.
+3. Write **native** `rules`. Do not translate the English catalog. LLM tells are language-specific (`delve` ≠ `plonger`; Spanish uses *cabe destacar*, not *it's worth noting*).
+4. Add `'<id>'` to `SLOP_PACK_IDS` in `packs/registry.js`.
+5. Add fixtures in `test.js`: a slop paragraph that scores high, a human paragraph that stays at **score 0**, plus `detectPack('<id>', '')` and a stopword-vote case.
+6. Run `node test.js`. Existing English and French tests must still pass.
 
-Append an object to `rules` in the pack file (English: `packs/en.js`):
+### Pack shape
 
 ```js
 {
-  id: 'my-rule',
-  name: 'Short name',
-  tier: 2,              // 3 high, 2 medium, 1 weak
-  category: 'Vocabulary',
-  re: /\bexample\b/gi,  // must be global; case-insensitive as needed
-  why: 'One-line explanation shown in the tooltip.'
+  id: 'es',
+  name: 'Spanish',
+  locales: ['es', 'es-ES', 'es-MX', 'es-AR'],  // html lang values that select this pack
+  stopwords: ['el', 'la', 'de', 'que', 'y', 'en', /* … */],
+  rules: [ /* see below */ ],
+  emDash: {                   // or null if this tell does not apply
+    re: /—|\s--\s/g,
+    minCount: 4,
+    wordsPerDash: 150,
+    rule: { id: 'em-dash', name: '…', tier: 1, category: 'Rhythm', why: '…' }
+  }
 }
 ```
 
-Then run:
+`locales` is how `lang="es-MX"` finds the pack. `stopwords` is the fallback vote when the page has no `lang` — use common function words, not slop vocabulary.
 
-```
-node test.js
+Cite real sources in a comment at the top of the file (how models actually write in that language, not a translated English list).
+
+### Rules
+
+Each rule is `{ id, name, tier, category, re|find, why }`. `why` is the tooltip. `re` must be global (`g`). `name` can be in the pack’s language.
+
+```js
+{
+  id: 'landscape-opener',
+  name: 'En el mundo actual',
+  tier: 2,              // 3 high, 2 medium, 1 weak
+  category: 'Throat-clearing',
+  re: /\ben el mundo actual\b/gi,
+  why: 'Empty opener. State the fact instead.'
+}
 ```
 
-When in doubt, demote a rule one tier rather than deleting it. False positives are the product killer.
+`\b` is ASCII-only in JavaScript. For accents, elisions, or non-Latin letters, use unicode boundaries (`u` flag) as in `packs/fr.js` (`(?<![\p{L}\p{N}_])…(?![\p{L}\p{N}_])`), not `\b`.
+
+Structural helpers live in `finders.js`. Pass language-specific separators and skip lists; do not copy the finder guts into the pack:
+
+- `makeChainFinder(head, headTest, minItems, chainSep)` — `et`/`ou`, `y`/`o`, `ni`/`ningún`
+- `makeEchoFinder(wordRe)` — pass `/[\p{L}\p{N}'’-]+/gu` when words are not ASCII
+- `makeAnaphoraFinder(skipRe, wordRe)` — skip articles and pronouns in that language
+
+When in doubt, demote a rule one tier. False positives are the product killer. A connector that humans use in the middle of a sentence should not fire just because it appears once.
+
+To add a rule to an existing pack, append an object to `rules` in that pack file and extend `test.js`. Same `node test.js` bar.
 
 ## Tests
 
