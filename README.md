@@ -42,7 +42,7 @@ These are **tells**, not proof of origin. Humans write some of them; density is 
 
 ## Language packs
 
-Rules live in `packs/<id>.js`. English is `packs/en.js`. The engine does not hardcode a language.
+Rules live in `packs/<id>.js`. English is `packs/en.js`. French is `packs/fr.js`. The engine does not hardcode a language. Scan picks a pack from `document.documentElement.lang`, then a stopword vote on the page text.
 
 To add a language:
 

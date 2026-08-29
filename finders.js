@@ -23,12 +23,13 @@ function makeChainFinder(head, headTest, minItems, chainSep) {
   };
 }
 
-function makeEchoFinder() {
+function makeEchoFinder(wordRe) {
   const SENT = /[^.!?\n]+[.!?]?/g;
   const minGram = 4;
   const minRun = 2;
+  const tokenRe = wordRe || /[a-z0-9'’-]+/g;
   function grams(s) {
-    const w = s.toLowerCase().match(/[a-z0-9'’-]+/g) || [];
+    const w = s.toLowerCase().match(tokenRe) || [];
     const out = new Set();
     for (let i = 0; i + minGram <= w.length; i++) out.add(w.slice(i, i + minGram).join(' '));
     return out;
@@ -66,14 +67,15 @@ function makeEchoFinder() {
   };
 }
 
-function makeAnaphoraFinder(skipRe) {
+function makeAnaphoraFinder(skipRe, wordRe) {
   const SENT = /[^.!?\n]+[.!?]/g;
   const minRun = 3;
   const skip = skipRe || /(?!)/;
+  const firstWord = wordRe || /[A-Za-z'’-]+/;
   return function (text) {
     const sents = [];
     for (const m of text.matchAll(SENT)) {
-      const w = m[0].match(/[A-Za-z'’-]+/);
+      const w = m[0].match(firstWord);
       if (w) {
         sents.push({
           start: m.index + m[0].indexOf(w[0]),

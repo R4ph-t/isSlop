@@ -196,5 +196,49 @@ console.log('9. no-ai-slop skill phrases');
   assert(ids('The harbor is a beacon for shipping.').some((id) => id === 'banned-vocab-hard'), 'standalone beacon');
 }
 
+// 10. French pack
+console.log('10. French pack');
+{
+  const fr = require('./packs/fr.js');
+  const { SLOP_PACK_IDS } = require('./packs/registry.js');
+  function ids(text) {
+    return engine.scanText(text, fr).matches.map((m) => m.rule.id);
+  }
+  const FR_SLOP = padToWords(
+    `Dans un monde en constante évolution, il est important de noter qu'il convient de souligner cette véritable opportunité. À l'ère du numérique, dans le paysage actuel, plongeons dans le sujet. Non seulement la solution permet d'optimiser les processus, mais elle s'inscrit aussi dans une démarche d'excellence, mettant en lumière notre savoir-faire. Les experts s'accordent à dire que c'est incontournable. Ce n'est pas un simple outil, c'est un partenaire stratégique. En outre, par ailleurs, cela constitue un levier crucial. En conclusion, n'hésitez pas à nous contacter. J'espère que cet article vous a plu.`,
+    200
+  );
+  const FR_HUMAN = padToWords(
+    `Hier j'ai passé 4 heures sur un race dans la file de jobs. On a 3 workers sur une machine et j'étais sûr que le lock était pris, mais les logs disaient le contraire. J'ai dumpé les clés redis, trouvé 12 entrées périmées de mardi, je les ai virées. Derrière, le backlog est passé de 840 à 11 en 90 secondes. Je m'en veux encore de pas avoir regardé redis en premier. Le « fix » dans la PR c'était un sleep(50), le genre de rustine qui explose dans un mois. Si tu tombes là-dessus : regarde le TTL de la clé, pas les logs du worker. J'ai écrit un script de 20 lignes qui affiche l'âge et le owner. Ça m'en a plus dit que le dashboard. On a shippé à 23h et je suis allé me coucher. Pas de manifeste, pas de leçon pour l'industrie, juste un bug bête avec un chiffre dessus.`,
+    200
+  );
+  assert(fr.id === 'fr', 'pack id is fr');
+  assert(SLOP_PACK_IDS.indexOf('fr') !== -1, 'registry lists fr');
+  assert(engine.currentPack().id === 'en', 'default pack stays English');
+  const slop = engine.scanText(FR_SLOP, fr);
+  assert(slop.score >= 60, 'French slop score >= 60 (got ' + slop.score + ', label ' + slop.label + ')');
+  assert((slop.tiers[3] || 0) >= 3, 'French slop has >= 3 tier-3 hits (got ' + slop.tiers[3] + ')');
+  const human = engine.scanText(FR_HUMAN, fr);
+  assert(human.score < 8, 'French human score < 8 (got ' + human.score + ')');
+  if (human.matches.length) {
+    console.log('     hits: ' + human.matches.map((m) => m.rule.id + '@' + JSON.stringify(FR_HUMAN.slice(m.start, m.end))).join(', '));
+  }
+  assert(ids("Il est important de noter que le lock a expiré.").includes('il-convient'), 'il est important de noter');
+  assert(ids("Il convient de souligner que le TTL compte.").includes('il-convient'), 'il convient de souligner');
+  assert(ids("Dans un monde en constante évolution, tout change.").includes('landscape-opener'), 'dans un monde');
+  assert(ids("À l'ère du numérique, tout est connecté.").includes('landscape-opener'), "à l'ère du numérique");
+  assert(ids("Ce n'est pas un simple outil, c'est un partenaire.").includes('ce-nest-pas'), "ce n'est pas X, c'est Y");
+  assert(ids("Non seulement c'est rapide, mais aussi ça tient la charge.").includes('non-seulement'), 'non seulement… mais aussi');
+  assert(ids("N'hésitez pas à ouvrir une issue.").includes('nhesitez-pas'), "n'hésitez pas");
+  assert(ids('Les experts estiment que c’est incontournable.').includes('weasel-attribution'), 'les experts estiment');
+  assert(ids('Faire du sens n’aide personne.').includes('anglicisms'), 'faire du sens');
+  assert(!ids('Le lock était pris, mais les logs disaient le contraire.').includes('connectors'), 'mid-sentence mais is not a connector tell');
+  const { detectPack } = require('./packs/registry.js');
+  assert(detectPack('fr', '').id === 'fr', 'html lang=fr → French pack');
+  assert(detectPack('fr-CA', '').id === 'fr', 'html lang=fr-CA → French pack');
+  assert(detectPack('en-US', '').id === 'en', 'html lang=en-US → English pack');
+  assert(detectPack('', FR_HUMAN).id === 'fr', 'stopword vote on French prose → fr');
+}
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);

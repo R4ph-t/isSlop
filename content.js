@@ -160,7 +160,16 @@
     clearHighlights();
 
     const engine = window.SlopEngine;
-    const pack = window.SlopPacks && window.SlopPacks.current && window.SlopPacks.current();
+    const packs = window.SlopPacks;
+    const htmlLang = document.documentElement.lang
+      || (document.querySelector('meta[http-equiv="content-language"]') || {}).content
+      || '';
+    const sample = document.body && document.body.innerText
+      ? document.body.innerText.slice(0, 4000)
+      : '';
+    const pack = (packs && packs.detect)
+      ? (packs.detect(htmlLang, sample) || packs.current())
+      : packs && packs.current && packs.current();
     const rules = pack && pack.rules;
     if (!engine || !rules) {
       return { score: 0, label: 'Reads human', wordCount: 0, tiers: { 1: 0, 2: 0, 3: 0 }, categories: [] };
