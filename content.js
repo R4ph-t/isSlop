@@ -7,6 +7,12 @@
     'SCRIPT', 'STYLE', 'NOSCRIPT', 'SVG', 'TEXTAREA', 'INPUT', 'SELECT', 'CODE', 'PRE',
     'META', 'TEMPLATE', 'TITLE', 'LINK', 'HEAD', 'SLOT', 'SOURCE', 'TRACK'
   ]);
+  const CHROME_TAGS = new Set(['NAV', 'FOOTER', 'ASIDE', 'MENU']);
+  const CHROME_ROLES = new Set([
+    'navigation', 'complementary', 'contentinfo', 'banner', 'search',
+    'dialog', 'alertdialog', 'menu', 'menubar'
+  ]);
+  const CHROME_ATTR = /(?:^|[\s_-])(?:nav(?:bar|igation)?|sidebar|footer|cookie(?:s|banner|notice|consent)?|consent|onetrust|gdpr|newsletter|subscribe|mailchimp|comments?|disqus|related[-_]posts|social[-_]share|share[-_]buttons|advert(?:isement|orial)?|adsense|ad[-_]slot|paywall)(?:[\s_-]|$)/i;
   const MARK_CLASS = 'slopspotter-mark';
   const TIP_ID = 'slopspotter-tip';
   const FLASH_HOST_ID = 'slopspotter-flash-host';
@@ -49,13 +55,82 @@
     return false;
   }
 
-  function collectTextNodes(root) {
+  function attrBlob(el) {
+    const cls = typeof el.className === 'string' ? el.className : '';
+    return ((el.id || '') + ' ' + cls).toLowerCase();
+  }
+
+  function isPageChrome(el) {
+    while (el && el.nodeType === 1 && el !== document.body && el !== document.documentElement) {
+      if (CHROME_TAGS.has(el.nodeName)) return true;
+      if (el.nodeName === 'HEADER' && !el.closest('article')) return true;
+      const role = (el.getAttribute('role') || '').toLowerCase();
+      if (CHROME_ROLES.has(role)) return true;
+      if (el.getAttribute('aria-modal') === 'true') return true;
+      if (CHROME_ATTR.test(attrBlob(el))) return true;
+      el = el.parentElement;
+    }
+    return false;
+  }
+
+  function countVisibleWords(el) {
+    if (!el) return 0;
+    const t = (el.innerText || '').trim();
+    if (!t) return 0;
+    return t.split(/\s+/).length;
+  }
+
+  function listTopLevel(selector) {
+    const all = Array.from(document.querySelectorAll(selector));
+    return all.filter(function (el) {
+      const parent = el.parentElement;
+      return !parent || !parent.closest(selector);
+    });
+  }
+
+  function pickContentRoot() {
+    const minWords = 80;
+    const articles = listTopLevel('article').map(function (el) {
+      return { el: el, w: countVisibleWords(el) };
+    }).filter(function (item) {
+      return item.w >= minWords;
+    }).sort(function (a, b) {
+      return b.w - a.w;
+    });
+
+    if (articles.length === 1) return { root: articles[0].el, kind: 'article' };
+    if (articles.length > 1 && articles[0].w >= articles[1].w * 2.5) {
+      return { root: articles[0].el, kind: 'article' };
+    }
+
+    const hooks = document.querySelectorAll(
+      '[itemprop="articleBody"], .entry-content, .post-content, .article-body, .article-content, .post-body, .markdown-body, .prose, #mw-content-text'
+    );
+    const hookScores = [];
+    for (let i = 0; i < hooks.length; i++) {
+      const w = countVisibleWords(hooks[i]);
+      if (w >= minWords) hookScores.push({ el: hooks[i], w: w });
+    }
+    hookScores.sort(function (a, b) { return b.w - a.w; });
+    if (hookScores.length === 1) return { root: hookScores[0].el, kind: 'article' };
+    if (hookScores.length > 1 && hookScores[0].w >= hookScores[1].w * 2.5) {
+      return { root: hookScores[0].el, kind: 'article' };
+    }
+
+    const main = document.querySelector('main, [role="main"]');
+    if (main && countVisibleWords(main) >= minWords) return { root: main, kind: 'main' };
+
+    return { root: document.body, kind: 'body' };
+  }
+
+  function collectTextNodes(root, stripChrome) {
     const nodes = [];
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: function (node) {
         const parent = node.parentElement;
         if (!parent) return NodeFilter.FILTER_REJECT;
         if (isUnrendered(parent)) return NodeFilter.FILTER_REJECT;
+        if (stripChrome && isPageChrome(parent)) return NodeFilter.FILTER_REJECT;
         const text = node.nodeValue || '';
         if (text.length < MIN_TEXT_LEN) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
@@ -83,9 +158,90 @@
       if (lum !== null) return lum < 0.45;
       el = el.parentElement;
     }
-    // no opaque background anywhere: fall back to the text color
     const textLum = luminance(getComputedStyle(document.body).color);
     return textLum !== null && textLum > 0.6;
+  }
+
+  const DARK_THEME_TOKENS = new Set([
+    'dark', 'night', 'black', 'dim', 'midnight', 'darkly', 'dracula', 'oled'
+  ]);
+  const LIGHT_THEME_TOKENS = new Set([
+    'light', 'day', 'white', 'default', 'cream', 'bright'
+  ]);
+  const DARK_CLASS_TOKENS = new Set([
+    'dark', 'dark-mode', 'darkmode', 'theme-dark', 'theme-night', 'night-mode',
+    'nightmode', 'is-dark', 'mode-dark', 'dark-theme', 'color-scheme-dark',
+    'skin-theme-clientpref-night', 'skin-night-theme'
+  ]);
+  const LIGHT_CLASS_TOKENS = new Set([
+    'light', 'light-mode', 'lightmode', 'theme-light', 'theme-day', 'day-mode',
+    'is-light', 'mode-light', 'light-theme', 'color-scheme-light',
+    'skin-theme-clientpref-day'
+  ]);
+  const THEME_ATTRS = [
+    'data-theme', 'data-color-mode', 'data-bs-theme', 'data-mode',
+    'data-color-scheme', 'data-ui-theme', 'theme'
+  ];
+
+  function tokenMode(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return null;
+    const first = raw.split(/[\s,/|_]+/)[0];
+    if (DARK_THEME_TOKENS.has(first)) return 'dark';
+    if (LIGHT_THEME_TOKENS.has(first)) return 'light';
+    return null;
+  }
+
+  function classMode(el) {
+    if (!el || !el.classList) return null;
+    let dark = false;
+    let light = false;
+    for (let i = 0; i < el.classList.length; i++) {
+      const name = el.classList[i].toLowerCase();
+      if (DARK_CLASS_TOKENS.has(name)) dark = true;
+      if (LIGHT_CLASS_TOKENS.has(name)) light = true;
+    }
+    if (dark && !light) return 'dark';
+    if (light && !dark) return 'light';
+    return null;
+  }
+
+  function attrMode(el) {
+    if (!el || !el.getAttribute) return null;
+    for (let i = 0; i < THEME_ATTRS.length; i++) {
+      const mode = tokenMode(el.getAttribute(THEME_ATTRS[i]));
+      if (mode) return mode;
+    }
+    if (el.hasAttribute('dark') && !el.hasAttribute('light')) return 'dark';
+    if (el.hasAttribute('light') && !el.hasAttribute('dark')) return 'light';
+    return null;
+  }
+
+  function colorSchemeMode(el) {
+    if (!el) return null;
+    const cs = (getComputedStyle(el).colorScheme || '').toLowerCase().trim();
+    if (!cs || cs === 'normal' || cs === 'auto') return null;
+    const parts = cs.split(/\s+/).filter(function (p) { return p && p !== 'only'; });
+    const hasDark = parts.indexOf('dark') !== -1;
+    const hasLight = parts.indexOf('light') !== -1;
+    if (hasDark && !hasLight) return 'dark';
+    if (hasLight && !hasDark) return 'light';
+    return null;
+  }
+
+  function detectSiteMode() {
+    const html = document.documentElement;
+    const body = document.body;
+    const meta = document.querySelector('meta[name="color-scheme"]');
+    const declared = attrMode(html)
+      || classMode(html)
+      || attrMode(body)
+      || classMode(body)
+      || tokenMode(meta && meta.getAttribute('content'))
+      || colorSchemeMode(html)
+      || colorSchemeMode(body);
+    if (declared) return declared;
+    return pageIsDark() ? 'dark' : 'light';
   }
 
   /* ── marking ───────────────────────────────────────────────────────── */
@@ -324,7 +480,9 @@
     hideTip();
     const tip = document.getElementById(TIP_ID);
     if (tip && tip.parentNode) tip.parentNode.removeChild(tip);
-    document.documentElement.classList.remove(DARK_CLASS);
+    document.documentElement.classList.remove(
+      DARK_CLASS, 'slopspotter-hide-t1', 'slopspotter-hide-t2', 'slopspotter-hide-t3'
+    );
     markSeq = 0;
     const marks = document.querySelectorAll('.' + MARK_CLASS);
     marks.forEach(function (mark) {
@@ -414,30 +572,63 @@
     return true;
   }
 
-  function scanPage() {
+  function applyInkScheme(scheme) {
+    const dark = scheme === 'dark' ? true
+      : scheme === 'light' ? false
+      : pageIsDark();
+    document.documentElement.classList.toggle(DARK_CLASS, dark);
+    return dark;
+  }
+
+  function applyTierFilter(hidden) {
+    [1, 2, 3].forEach(function (tier) {
+      document.documentElement.classList.toggle('slopspotter-hide-t' + tier, !!(hidden && hidden[tier]));
+    });
+    if (pinnedMark) {
+      const tier = Number(pinnedMark.getAttribute('data-slop-tier'));
+      if (hidden && hidden[tier]) {
+        pinnedMark = null;
+        hideTip();
+      }
+    }
+  }
+
+  function scanPage(scope, scheme) {
     pinnedMark = null;
     clearHighlights();
 
-    const onDark = pageIsDark();
-    document.documentElement.classList.toggle(DARK_CLASS, onDark);
+    const use = (scheme === 'dark' || scheme === 'light') ? scheme : detectSiteMode();
+    const onDark = applyInkScheme(use);
+
+    const wantArticle = scope !== 'page';
+    const picked = wantArticle ? pickContentRoot() : { root: document.body, kind: 'body' };
+    const root = (picked.root && picked.root.nodeType === 1) ? picked.root : document.body;
 
     const engine = window.SlopEngine;
     const packs = window.SlopPacks;
     const htmlLang = document.documentElement.lang
       || (document.querySelector('meta[http-equiv="content-language"]') || {}).content
       || '';
-    const sample = document.body && document.body.innerText
-      ? document.body.innerText.slice(0, 4000)
-      : '';
+    const sample = root.innerText ? root.innerText.slice(0, 4000) : '';
     const pack = (packs && packs.detect)
       ? (packs.detect(htmlLang, sample) || packs.current())
       : packs && packs.current && packs.current();
     const rules = pack && pack.rules;
-    if (!engine || !rules) {
-      return { score: 0, label: 'Reads human', wordCount: 0, onDark: onDark, tiers: { 1: 0, 2: 0, 3: 0 }, categories: [], findings: [] };
-    }
+    const empty = {
+      score: 0,
+      label: 'Reads human',
+      wordCount: 0,
+      onDark: onDark,
+      scheme: onDark ? 'dark' : 'light',
+      tiers: { 1: 0, 2: 0, 3: 0 },
+      categories: [],
+      findings: [],
+      scope: wantArticle ? 'article' : 'page',
+      root: picked.kind || 'body'
+    };
+    if (!engine || !rules) return empty;
 
-    const nodes = collectTextNodes(document.body);
+    const nodes = collectTextNodes(root, wantArticle);
     let scannedText = '';
     const nodeMatches = [];
 
@@ -464,7 +655,10 @@
 
     const summary = engine.summarize(allMatches, wordCount);
     summary.onDark = onDark;
+    summary.scheme = onDark ? 'dark' : 'light';
     summary.findings = collectFindings();
+    summary.scope = wantArticle ? 'article' : 'page';
+    summary.root = picked.kind || 'body';
     if (pack) {
       summary.pack = {
         id: pack.id,
@@ -478,7 +672,16 @@
   function handleMessage(msg, _sender, sendResponse) {
     if (!msg || !msg.type) return;
     if (msg.type === 'SLOP_SCAN') {
-      sendResponse(scanPage());
+      sendResponse(scanPage(msg.scope, msg.scheme));
+      return;
+    }
+    if (msg.type === 'SLOP_SCHEME') {
+      sendResponse({ ok: true, onDark: applyInkScheme(msg.scheme) });
+      return;
+    }
+    if (msg.type === 'SLOP_FILTER') {
+      applyTierFilter(msg.hidden || {});
+      sendResponse({ ok: true });
       return;
     }
     if (msg.type === 'SLOP_JUMP') {

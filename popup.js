@@ -4,6 +4,10 @@ const statusEl = document.getElementById('status');
 const resultsEl = document.getElementById('results');
 
 let scanned = false;
+let scanScope = 'article';
+let lastSummary = null;
+const hiddenTiers = { 1: false, 2: false, 3: false };
+const isPreview = new URLSearchParams(location.search).has('preview');
 
 function setStatus(text) {
   if (!text) {
@@ -72,13 +76,54 @@ function paintBar(score, tiers) {
   });
 }
 
-function blurb(n, score) {
-  if (!n) return 'No flags. The page didn’t trip a rule.';
+function blurb(n, score, where) {
+  const place = where || 'the page';
+  if (!n) return 'No flags. ' + place.charAt(0).toUpperCase() + place.slice(1) + ' didn’t trip a rule.';
   if (score < 15) {
-    return n + (n === 1 ? ' flag. ' : ' flags. ') + 'Most of the page reads as written by a person.';
+    return n + (n === 1 ? ' flag. ' : ' flags. ') + 'Most of ' + place + ' reads as written by a person.';
   }
   const who = n === 1 ? 'One passage carries' : n + ' passages carry';
-  return who + ' almost all of it. The rest reads as written by a person.';
+  return who + ' almost all of it. The rest of ' + place + ' reads as written by a person.';
+}
+
+function scopeWhere(summary) {
+  return summary && summary.scope === 'article' && summary.root !== 'body'
+    ? 'the article'
+    : 'the page';
+}
+
+function scopeNote(summary) {
+  if (!summary) return '';
+  if (summary.scope === 'page') return '';
+  if (summary.root === 'body') return 'No article block found. Skipped nav, footer, and asides.';
+  return '';
+}
+
+function paintScope() {
+  document.querySelectorAll('[data-scope]').forEach(function (btn) {
+    const on = btn.dataset.scope === scanScope;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
+function paintLevels() {
+  document.querySelectorAll('.level-toggle').forEach(function (btn) {
+    const tier = Number(btn.dataset.tier);
+    const on = !hiddenTiers[tier];
+    btn.classList.toggle('is-off', !on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    const label = tier === 3 ? 'heavy' : tier === 2 ? 'medium' : 'light';
+    btn.title = on ? 'Hide ' + label + ' marks' : 'Show ' + label + ' marks';
+  });
+}
+
+function visibleFindings(list) {
+  const allOff = hiddenTiers[1] && hiddenTiers[2] && hiddenTiers[3];
+  if (allOff) return [];
+  return (list || []).filter(function (hit) {
+    return !hiddenTiers[hit.tier];
+  });
 }
 
 function tierName(tier) {
@@ -93,7 +138,10 @@ function renderFindings(list) {
   if (!list || !list.length) {
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = 'No patterns hit';
+    const allOff = hiddenTiers[1] && hiddenTiers[2] && hiddenTiers[3];
+    li.textContent = allOff
+      ? 'All levels hidden. Tap a level to show marks.'
+      : 'No patterns hit';
     root.appendChild(li);
     return;
   }
@@ -132,6 +180,7 @@ function renderFindings(list) {
 function render(summary, elapsedMs) {
   resultsEl.hidden = false;
   setScanned(true);
+  lastSummary = summary || lastSummary;
 
   const tiers = summary.tiers || {};
   const t3 = tiers[3] || 0;
@@ -151,7 +200,14 @@ function render(summary, elapsedMs) {
     if (el) el.textContent = String(pair[1]);
   });
   paintBar(summary.score, tiers);
-  document.getElementById('blurb').textContent = blurb(total, summary.score);
+  document.getElementById('blurb').textContent = blurb(total, summary.score, scopeWhere(summary));
+  const noteEl = document.getElementById('scope-note');
+  if (noteEl) noteEl.textContent = scopeNote(summary);
+  paintScope();
+  paintLevels();
+  if (summary.scheme === 'dark' || summary.scheme === 'light') {
+    applyScheme(summary.scheme, false);
+  }
 
   const note = document.getElementById('pack-note');
   if (note) {
@@ -164,9 +220,8 @@ function render(summary, elapsedMs) {
     }
   }
 
-  renderFindings(summary.findings && summary.findings.length
-    ? summary.findings
-    : []);
+  const findings = summary.findings && summary.findings.length ? summary.findings : [];
+  renderFindings(visibleFindings(findings));
 }
 
 async function runScan() {
@@ -176,7 +231,11 @@ async function runScan() {
   try {
     const tab = await activeTab();
     await inject(tab.id);
-    const summary = await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_SCAN' });
+    const summary = await chrome.tabs.sendMessage(tab.id, {
+      type: 'SLOP_SCAN',
+      scope: scanScope
+    });
+    await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_FILTER', hidden: hiddenTiers });
     statusEl.classList.remove('is-error');
     render(summary, performance.now() - t0);
     setStatus('');
@@ -208,6 +267,43 @@ async function hideHighlights() {
   }
 }
 
+async function sendScheme(scheme) {
+  if (isPreview) return;
+  try {
+    const tab = await activeTab();
+    await chrome.tabs.sendMessage(tab.id, {
+      type: 'SLOP_SCHEME',
+      scheme: scheme || currentScheme()
+    });
+  } catch (err) {
+    /* page gone or not injected yet */
+  }
+}
+
+async function sendFilter() {
+  if (isPreview) return;
+  try {
+    const tab = await activeTab();
+    await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_FILTER', hidden: hiddenTiers });
+  } catch (err) {
+    /* page gone */
+  }
+}
+
+function applyFindingsFilter() {
+  if (!lastSummary) return;
+  const findings = lastSummary.findings && lastSummary.findings.length ? lastSummary.findings : [];
+  renderFindings(visibleFindings(findings));
+  paintLevels();
+}
+
+hideBtn.addEventListener('click', function () {
+  hideHighlights();
+});
+rescanBtn.addEventListener('click', function () {
+  runScan();
+});
+
 document.getElementById('close').addEventListener('click', async function () {
   try {
     const tab = await activeTab();
@@ -235,24 +331,52 @@ function currentScheme() {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
-function applyScheme(scheme) {
+function applyScheme(scheme, syncPage) {
   const next = scheme === 'dark' ? 'dark' : 'light';
   document.documentElement.dataset.theme = next;
   const shell = document.querySelector('.shell');
   if (shell) shell.style.colorScheme = next;
-  document.querySelectorAll('.scheme-opt').forEach(function (btn) {
+  document.querySelectorAll('[data-scheme]').forEach(function (btn) {
     btn.classList.toggle('is-on', btn.dataset.scheme === next);
   });
   const levels = document.getElementById('levels');
   if (levels) levels.classList.toggle('slopspotter-on-dark', next === 'dark');
+  if (syncPage !== false) sendScheme(next);
 }
 
-applyScheme(currentScheme());
+applyScheme(currentScheme(), false);
 
-document.querySelector('.scheme-toggle').addEventListener('click', function (e) {
-  const btn = e.target.closest('.scheme-opt');
+document.querySelectorAll('[data-scheme]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    applyScheme(btn.dataset.scheme);
+  });
+});
+
+document.querySelectorAll('[data-scope]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    const next = btn.dataset.scope === 'page' ? 'page' : 'article';
+    if (next === scanScope) return;
+    scanScope = next;
+    paintScope();
+    if (!isPreview) {
+      runScan();
+      return;
+    }
+    if (lastSummary) {
+      lastSummary = Object.assign({}, lastSummary, { scope: scanScope, root: scanScope === 'article' ? 'article' : 'body' });
+      render(lastSummary, 4100);
+    }
+  });
+});
+
+document.getElementById('levels').addEventListener('click', function (e) {
+  const btn = e.target.closest('.level-toggle');
   if (!btn) return;
-  applyScheme(btn.dataset.scheme);
+  const tier = Number(btn.dataset.tier);
+  if (!tier) return;
+  hiddenTiers[tier] = !hiddenTiers[tier];
+  applyFindingsFilter();
+  sendFilter();
 });
 
 if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
@@ -261,12 +385,14 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifes
   if (el && ver) el.textContent = ver;
 }
 
-if (new URLSearchParams(location.search).has('preview')) {
-  applyScheme('light');
+if (isPreview) {
+  applyScheme('light', false);
   render({
     score: 68,
     label: 'Heavy slop',
     wordCount: 1942,
+    scope: 'article',
+    root: 'article',
     tiers: { 1: 3, 2: 3, 3: 4 },
     findings: [
       { id: 'p1', name: 'Closing platitude', snippet: 'At the end of the day, the possibilities are truly endless.', tier: 3 },

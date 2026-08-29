@@ -6,15 +6,15 @@ isSlop is a Chrome extension that highlights likely AI-writing patterns on the p
 
 ## Short version
 
-isSlop does not collect, store, transmit, or sell any data. There is no server, no account, and no analytics. The extension makes no network requests of any kind.
+isSlop does not collect, store, transmit, or sell any data. There is no server, no account, and no analytics. The extension makes no network requests.
 
 ## What the extension does
 
-When you click the isSlop toolbar icon, the extension reads the text of the tab you are on, compares it against a phrase catalog that ships inside the extension package, and draws highlights on that page. The score and the findings list are computed in the tab, in your browser.
+When you click the isSlop toolbar icon, the extension reads the text of the tab you are on, compares it against a phrase catalog that ships inside the extension package, and draws highlights on that page. The score and findings list are computed in that tab.
 
 ## Data collection
 
-**None.** Specifically, isSlop does not collect or transmit:
+**None.** isSlop does not collect or transmit:
 
 - Personally identifiable information (name, address, email, age, ID numbers)
 - Health information
@@ -24,9 +24,9 @@ When you click the isSlop toolbar icon, the extension reads the text of the tab 
 - Location
 - Web history
 - User activity (clicks, mouse position, keystrokes)
-- Website content (text, images, or files from the pages you visit)
+- Website content as stored or sent data. The current tab is read in memory for the scan, then discarded.
 
-Page text is read in the tab and discarded when the scan finishes. It is never written to disk, never sent over the network, and never shared with the developer or any third party.
+Page text is never written to disk, never sent over the network, and never shared with the developer or any third party.
 
 ## Network activity
 

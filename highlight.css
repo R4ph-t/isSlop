@@ -57,6 +57,18 @@
 .slopspotter-on-dark .slopspotter-t2 { --ss-ink: 0.26; }
 .slopspotter-on-dark .slopspotter-t1 { --ss-ink: 0.085; }
 
+html.slopspotter-hide-t3 .slopspotter-mark.slopspotter-t3,
+html.slopspotter-hide-t2 .slopspotter-mark.slopspotter-t2,
+html.slopspotter-hide-t1 .slopspotter-mark.slopspotter-t1 {
+  --ss-ink: 0;
+  padding: 0;
+  background-image: none;
+  box-shadow: none;
+  mix-blend-mode: normal;
+  cursor: inherit;
+  pointer-events: none;
+}
+
 /* ── tooltip: light page (default), dark page via .slopspotter-on-dark ── */
 
 @font-face {

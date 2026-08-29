@@ -1,15 +1,15 @@
 # isSlop
 
-Chrome extension that highlights likely AI-generated "slop" **inline on the page**, with a tooltip naming the rule that fired. Nothing leaves the browser. No network, accounts, tracking, or ML APIs.
+Chrome extension that highlights likely AI-generated "slop" on the current page. A tooltip names the rule that fired. Nothing leaves the browser. No network, accounts, tracking, or ML APIs.
 
-Toolbar and popup icons are from [Lucide](https://lucide.dev) (`highlighter`, `eraser`; ISC License).
+Toolbar and panel icons are from [Lucide](https://lucide.dev) (`highlighter`, `eraser`; ISC License).
 
 ## Load unpacked
 
 1. Open `chrome://extensions`
 2. Turn on **Developer mode**
 3. Click **Load unpacked** and select this folder
-4. Open any http(s) page and click the toolbar icon. The page is scanned as the popup opens.
+4. Open any http(s) page and click the toolbar icon. A panel opens on the page and the tab is scanned.
 5. Hover a highlight for the rule name and why it fired. **Hide highlights** removes marks. **Rescan** if the page changed.
 
 Chrome's own pages (`chrome://…`, the Web Store) cannot be scripted.
@@ -23,13 +23,13 @@ density = weightedHits / wordCount * 100
 score   = clamp(round(density * 25), 0, 100)
 ```
 
-Labels: &lt;15 Reads human · 15–39 Some slop patterns · 40–69 Heavy slop · 70+ Slop city.
+Labels: below 15 Reads human · 15–39 Some slop patterns · 40–69 Heavy slop · 70+ Slop city.
 
-Em dashes are only flagged in bulk: at least 4 on the page **and** more than 1 per 150 words.
+Em dashes are only flagged in bulk: at least 4 on the page and more than 1 per 150 words.
 
 ## Sources
 
-The original catalog was the build spec. Rules now also draw from:
+Rules draw from:
 
 - [Wikipedia: Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) (WikiProject AI Cleanup)
 - Kobak et al., *Science Advances* (2025) — PubMed spike in *delves* / *underscores* / *showcasing*
@@ -118,7 +118,7 @@ Packs, `finders.js`, and `engine.js` are dual-environment (browser global + Node
 
 ## Release (Chrome Web Store)
 
-Version lives in one place: `manifest.json` `"version"`. Chrome only accepts `x.y.z` integers (no `-beta`). The popup reads it via `chrome.runtime.getManifest()`.
+Version lives in one place: `manifest.json` `"version"`. Chrome only accepts `x.y.z` integers (no `-beta`). The panel reads it via `chrome.runtime.getManifest()`.
 
 ```
 node scripts/release.js pack              # zip current version → dist/islop-x.y.z.zip
@@ -135,7 +135,7 @@ Then:
    - Screenshots (1280×800 JPEG): `screenshot-1-popup.jpg`, `screenshot-2-tooltip.jpg`, `screenshot-3-dark.jpg`
    - Small promo tile (440×280): `promo-small.jpg`
    - 128px icon: `icons/icon128.png` (already in the zip)
-4. Privacy tab: single purpose, data use (none leaves the browser), justify `activeTab` and `scripting`, remote code = No. You need a public privacy-policy URL.
+4. Privacy tab: single purpose, data use (nothing leaves the browser), justify `activeTab` and `scripting`, remote code = No. Host [`PRIVACY.md`](PRIVACY.md) at a public URL.
 5. Submit for review.
 
 After a bump, commit `manifest.json`, then tag so git matches the store:
@@ -144,4 +144,3 @@ After a bump, commit `manifest.json`, then tag so git matches the store:
 git tag v1.0.1
 git push && git push --tags
 ```
-
