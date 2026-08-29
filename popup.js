@@ -1,7 +1,9 @@
-const scanBtn = document.getElementById('scan');
-const clearBtn = document.getElementById('clear');
+const hideBtn = document.getElementById('hide');
+const rescanBtn = document.getElementById('rescan');
 const statusEl = document.getElementById('status');
 const resultsEl = document.getElementById('results');
+
+let scanned = false;
 
 function setStatus(text) {
   if (!text) {
@@ -14,8 +16,15 @@ function setStatus(text) {
 }
 
 function setBusy(busy) {
-  scanBtn.disabled = busy;
-  clearBtn.disabled = busy;
+  hideBtn.disabled = busy || !scanned;
+  rescanBtn.disabled = busy;
+}
+
+function setScanned(on) {
+  scanned = on;
+  document.body.classList.toggle('is-scanned', on);
+  hideBtn.disabled = !on;
+  if (!on) resultsEl.hidden = true;
 }
 
 async function activeTab() {
@@ -41,23 +50,108 @@ async function inject(tabId) {
   });
 }
 
-function bandClass(label) {
-  if (label === 'Reads human') return 'is-human';
-  if (label === 'Some slop patterns') return 'is-some';
-  if (label === 'Heavy slop') return 'is-heavy';
-  return 'is-city';
+function displayLabel(label) {
+  if (label === 'Heavy slop') return 'Heavily patterned';
+  if (label === 'Some slop patterns') return 'Some patterning';
+  return label;
 }
 
-function render(summary) {
+function paintBar(score, tiers) {
+  const bar = document.getElementById('bar');
+  if (!bar) return;
+  const t3 = (tiers && tiers[3]) || 0;
+  const t2 = (tiers && tiers[2]) || 0;
+  const t1 = (tiers && tiers[1]) || 0;
+  const weighted = t3 * 3 + t2 * 2 + t1;
+  const parts = weighted
+    ? [(t3 * 3) / weighted, (t2 * 2) / weighted, t1 / weighted]
+    : [0, 0, 0];
+  ['b3', 'b2', 'b1'].forEach(function (cls, i) {
+    const el = bar.querySelector('.' + cls);
+    if (el) el.style.flex = '0 0 ' + (parts[i] * score).toFixed(2) + '%';
+  });
+}
+
+function blurb(n, score) {
+  if (!n) return 'No flags. The page didn’t trip a rule.';
+  if (score < 15) {
+    return n + (n === 1 ? ' flag. ' : ' flags. ') + 'Most of the page reads as written by a person.';
+  }
+  const who = n === 1 ? 'One passage carries' : n + ' passages carry';
+  return who + ' almost all of it. The rest reads as written by a person.';
+}
+
+function tierName(tier) {
+  if (tier === 3) return 'HEAVY';
+  if (tier === 2) return 'MEDIUM';
+  return 'LIGHT';
+}
+
+function renderFindings(list) {
+  const root = document.getElementById('findings');
+  root.replaceChildren();
+  if (!list || !list.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'No patterns hit';
+    root.appendChild(li);
+    return;
+  }
+  for (const hit of list) {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'finding';
+    btn.dataset.id = hit.id;
+
+    const copy = document.createElement('span');
+    copy.className = 'finding-copy';
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = hit.name;
+    const snippet = document.createElement('span');
+    snippet.className = 'snippet';
+    snippet.textContent = hit.snippet;
+    copy.append(name, snippet);
+
+    const meta = document.createElement('span');
+    meta.className = 'finding-meta';
+    const tag = document.createElement('span');
+    tag.className = 'tier-tag t' + hit.tier;
+    tag.textContent = tierName(hit.tier);
+    meta.appendChild(tag);
+    meta.insertAdjacentHTML('beforeend',
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>');
+
+    btn.append(copy, meta);
+    li.appendChild(btn);
+    root.appendChild(li);
+  }
+}
+
+function render(summary, elapsedMs) {
   resultsEl.hidden = false;
-  const block = document.getElementById('score-block');
-  block.className = 'score-block ' + bandClass(summary.label);
+  setScanned(true);
+
+  const tiers = summary.tiers || {};
+  const t3 = tiers[3] || 0;
+  const t2 = tiers[2] || 0;
+  const t1 = tiers[1] || 0;
+  const total = t3 + t2 + t1;
+
   document.getElementById('score').textContent = String(summary.score);
-  document.getElementById('label').textContent = summary.label;
-  document.getElementById('t3').textContent = String((summary.tiers && summary.tiers[3]) || 0);
-  document.getElementById('t2').textContent = String((summary.tiers && summary.tiers[2]) || 0);
-  document.getElementById('t1').textContent = String((summary.tiers && summary.tiers[1]) || 0);
-  document.getElementById('words').textContent = String(summary.wordCount || 0);
+  document.getElementById('label').textContent = displayLabel(summary.label);
+  document.getElementById('words').textContent = Number(summary.wordCount || 0).toLocaleString('en-US');
+  const elapsed = document.getElementById('elapsed');
+  elapsed.textContent = elapsedMs != null ? ' · ' + (elapsedMs / 1000).toFixed(1) + 's' : '';
+
+  [['t3', t3], ['t2', t2], ['t1', t1], ['t3b', t3], ['t2b', t2], ['t1b', t1],
+   ['total', total]].forEach(function (pair) {
+    const el = document.getElementById(pair[0]);
+    if (el) el.textContent = String(pair[1]);
+  });
+  paintBar(summary.score, tiers);
+  document.getElementById('blurb').textContent = blurb(total, summary.score);
 
   const note = document.getElementById('pack-note');
   if (note) {
@@ -70,74 +164,81 @@ function render(summary) {
     }
   }
 
-  const cats = document.getElementById('cats');
-  cats.replaceChildren();
-  const list = summary.categories || [];
-  if (!list.length) {
-    const li = document.createElement('li');
-    li.className = 'empty';
-    li.textContent = 'No patterns hit';
-    cats.appendChild(li);
-    return;
-  }
-  for (const cat of list) {
-    const li = document.createElement('li');
-    const name = document.createElement('span');
-    name.textContent = cat.name;
-    const n = document.createElement('span');
-    n.className = 'n';
-    n.textContent = String(cat.count);
-    li.append(name, n);
-    cats.appendChild(li);
-  }
+  renderFindings(summary.findings && summary.findings.length
+    ? summary.findings
+    : []);
 }
 
-scanBtn.addEventListener('click', async () => {
+async function runScan() {
   setBusy(true);
   setStatus('Scanning…');
+  const t0 = performance.now();
   try {
     const tab = await activeTab();
     await inject(tab.id);
-    const summary = await chrome.tabs.sendMessage(tab.id, { type: 'SCAN' });
+    const summary = await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_SCAN' });
     statusEl.classList.remove('is-error');
-    render(summary);
+    render(summary, performance.now() - t0);
     setStatus('');
   } catch (err) {
-    resultsEl.hidden = true;
+    setScanned(false);
     statusEl.classList.add('is-error');
     setStatus('Can’t scan this page. Open a normal http(s) tab.');
   } finally {
     setBusy(false);
   }
-});
+}
 
-clearBtn.addEventListener('click', async () => {
+async function hideHighlights() {
   setBusy(true);
   try {
     const tab = await activeTab();
     await inject(tab.id);
-    await chrome.tabs.sendMessage(tab.id, { type: 'CLEAR' });
-    resultsEl.hidden = true;
+    await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_CLEAR' });
     statusEl.classList.remove('is-error');
-    setStatus('Highlights cleared');
+    setScanned(false);
+    document.getElementById('words').textContent = '0';
+    document.getElementById('elapsed').textContent = '';
+    setStatus('');
   } catch (err) {
     statusEl.classList.add('is-error');
     setStatus('Nothing to clear on this page.');
   } finally {
     setBusy(false);
   }
+}
+
+hideBtn.addEventListener('click', hideHighlights);
+rescanBtn.addEventListener('click', runScan);
+
+document.getElementById('findings').addEventListener('click', async function (e) {
+  const btn = e.target.closest('.finding');
+  if (!btn || !btn.dataset.id) return;
+  try {
+    const tab = await activeTab();
+    await inject(tab.id);
+    await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_JUMP', id: btn.dataset.id });
+  } catch (err) {
+    /* page gone */
+  }
 });
+
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
+  const ver = chrome.runtime.getManifest().version;
+  const el = document.getElementById('ext-version');
+  if (el && ver) el.textContent = ver;
+}
 
 if (new URLSearchParams(location.search).has('preview')) {
   render({
-    score: 72,
-    label: 'Slop city',
-    wordCount: 412,
-    tiers: { 1: 3, 2: 8, 3: 12 },
-    categories: [
-      { name: 'Rhetorical setups', count: 9 },
-      { name: 'Vocabulary', count: 7 },
-      { name: 'Puffery', count: 4 }
+    score: 68,
+    label: 'Heavy slop',
+    wordCount: 1942,
+    tiers: { 1: 3, 2: 3, 3: 4 },
+    findings: [
+      { id: 'p1', name: 'Closing platitude', snippet: 'At the end of the day, the possibilities…', tier: 3 },
+      { id: 'p2', name: 'Template opener', snippet: "In today's rapidly evolving…", tier: 3 },
+      { id: 'p3', name: 'Not-but antithesis', snippet: "It's not just a tool. It's a…", tier: 3 }
     ]
-  });
+  }, 4100);
 }

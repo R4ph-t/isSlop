@@ -7,42 +7,89 @@
 </head>
 <body>
   <header>
-    <img class="logo" src="icons/icon.svg" width="22" height="22" alt="" />
-    <div>
-      <h1>SlopSpotter</h1>
-      <p class="tag">Highlights slop in the page</p>
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 11-6 6v3h9l3-3" />
+        <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
+      </svg>
+    </span>
+    <h1>SlopSpotter</h1>
+    <div class="info-wrap">
+      <button type="button" class="info-btn" aria-label="About SlopSpotter" aria-describedby="info-tip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4" />
+          <path d="M12 8h.01" />
+        </svg>
+      </button>
+      <div id="info-tip" class="info-tip" role="tooltip">
+        <p class="info-kicker">100% LOCAL</p>
+        <p>Nothing leaves the browser. No network, no accounts, no tracking. The page is scored on this tab and never sent anywhere.</p>
+        <p class="info-ver mono">v<span id="ext-version">1.0.0</span></p>
+      </div>
     </div>
+    <span class="words mono"><span id="words">0</span> WORDS<span id="elapsed"></span></span>
   </header>
-
-  <div class="actions">
-    <button id="scan" type="button">Scan page</button>
-    <button id="clear" type="button" class="ghost">Clear</button>
-  </div>
 
   <p id="status" class="status" hidden></p>
 
   <section id="results" hidden>
     <div class="score-block" id="score-block">
-      <div id="score" class="score"></div>
-      <div id="label" class="label"></div>
+      <div class="score-row">
+        <span id="score" class="score">0</span>
+        <span class="out-of">/ 100 SLOP</span>
+        <span id="label" class="label"></span>
+      </div>
+      <div class="bar" id="bar" aria-hidden="true">
+        <span class="b3"></span><span class="b2"></span><span class="b1"></span><span class="rest"></span>
+      </div>
+      <p class="counts mono">
+        <span><span id="t3">0</span> HEAVY</span>
+        <span><span id="t2">0</span> MEDIUM</span>
+        <span><span id="t1">0</span> LIGHT</span>
+        <span class="total"><span id="total">0</span> FLAGS</span>
+      </p>
+      <p id="blurb" class="blurb"></p>
     </div>
 
-    <ul class="tiers">
-      <li class="t3" title="High certainty"><span class="swatch"></span><span id="t3" class="n">0</span></li>
-      <li class="t2" title="Medium"><span class="swatch"></span><span id="t2" class="n">0</span></li>
-      <li class="t1" title="Weak signal"><span class="swatch"></span><span id="t1" class="n">0</span></li>
+    <div class="levels-head">
+      <span class="kicker">HIGHLIGHTER LEVELS</span>
+    </div>
+    <ul class="levels">
+      <li class="t3"><span class="swatch">Heavy</span><span class="desc">Hollow filler — cut it</span><span class="n" id="t3b">0</span></li>
+      <li class="t2"><span class="swatch">Medium</span><span class="desc">Borrowed cadence — rewrite</span><span class="n" id="t2b">0</span></li>
+      <li class="t1"><span class="swatch">Light</span><span class="desc">Padding &amp; hedging — trim</span><span class="n" id="t1b">0</span></li>
     </ul>
 
-    <ul id="cats" class="cats"></ul>
+    <div class="findings-head">
+      <span class="kicker">FINDINGS</span>
+      <span class="hint">tap to jump</span>
+    </div>
+    <ul id="findings" class="findings"></ul>
 
-    <p class="meta"><span id="words" class="n">0</span> words</p>
     <p id="pack-note" class="pack-note" hidden></p>
   </section>
 
-  <aside class="privacy">
-    <p class="privacy-kicker">100% local</p>
-    <p>Nothing leaves the browser. No network, no accounts, no tracking. The page is scored on this tab and never sent anywhere.</p>
-  </aside>
+  <div class="actions">
+    <button id="hide" type="button" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+        <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+        <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+        <path d="m2 2 20 20" />
+      </svg>
+      Hide highlights
+    </button>
+    <button id="rescan" type="button" class="ghost">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+        <path d="M3 21v-5h5" />
+      </svg>
+      Rescan
+    </button>
+  </div>
 
   <script src="packs/registry.js"></script>
   <script src="popup.js"></script>
