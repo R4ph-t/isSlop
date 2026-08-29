@@ -27,6 +27,7 @@ jobs:
             exit 1
           fi
       - run: npm run lint
+      - run: npm run typecheck
       - run: node scripts/release.js pack
       - name: Create GitHub Release
         env:

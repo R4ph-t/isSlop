@@ -1,41 +1,48 @@
-(function () {
-  if (typeof window.__slopspotterTeardown === 'function') {
-    window.__slopspotterTeardown();
-  }
+import * as Scan from './scan-dom';
+import * as engine from './engine';
+import { detectPack } from './packs/registry';
+import './packs';
 
-  const Scan = window.SlopScanDom;
-  if (!Scan) return;
+if (typeof window.__slopspotterTeardown === 'function') {
+  window.__slopspotterTeardown();
+}
 
-  const MARK_CLASS = Scan.MARK_CLASS;
-  const MARK_ID_RE = Scan.MARK_ID_RE;
-  const DARK_CLASS = 'slopspotter-on-dark';
-  const MAX_SCAN_CHARS = 200000;
-  const MAX_SCAN_MS = 450;
-  const TIER_NAME = { 3: 'HEAVY', 2: 'MEDIUM', 1: 'LIGHT' };
+const MARK_CLASS = Scan.MARK_CLASS;
+const MARK_ID_RE = Scan.MARK_ID_RE;
+const DARK_CLASS = 'slopspotter-on-dark';
+const MAX_SCAN_CHARS = 200000;
+const MAX_SCAN_MS = 450;
+const TIER_NAME: Record<string, string> = { 3: 'HEAVY', 2: 'MEDIUM', 1: 'LIGHT' };
 
-  let pinnedMark = null;
-  let flashMark = null;
-  let flashTimer = 0;
-  let unrenderedCache = Scan.createCache();
-  let uiHost = null;
-  let uiShadow = null;
-  let tipEl = null;
-  let flashBox = null;
-  const bound = [];
+let pinnedMark: HTMLElement | null = null;
+let flashMark: HTMLElement | null = null;
+let flashTimer = 0;
+let unrenderedCache = Scan.createCache();
+let uiHost: HTMLElement | null = null;
+let uiShadow: ShadowRoot | null = null;
+let tipEl: HTMLElement | null = null;
+let flashBox: HTMLElement | null = null;
+type Bound = [EventTarget, string, EventListener, boolean | AddEventListenerOptions | undefined];
+const bound: Bound[] = [];
 
-  function listen(target, type, fn, opts) {
-    target.addEventListener(type, fn, opts);
-    bound.push([target, type, fn, opts]);
-  }
+function listen(
+  target: EventTarget,
+  type: string,
+  fn: EventListener,
+  opts?: boolean | AddEventListenerOptions
+): void {
+  target.addEventListener(type, fn, opts);
+  bound.push([target, type, fn, opts]);
+}
 
-  function countVisibleWords(el) {
+  function countVisibleWords(el: Element | null): number {
     if (!el) return 0;
-    const t = (el.innerText || '').trim();
+    const t = (el instanceof HTMLElement ? el.innerText : el.textContent || '').trim();
     if (!t) return 0;
     return t.split(/\s+/).length;
   }
 
-  function listTopLevel(selector) {
+  function listTopLevel(selector: string): Element[] {
     const all = Array.from(document.querySelectorAll(selector));
     return all.filter(function (el) {
       const parent = el.parentElement;
@@ -80,7 +87,7 @@
 
   /* ── page luminance: decides multiply vs screen ink ─────────────── */
 
-  function luminance(color) {
+  function luminance(color: string): number | null {
     const m = /rgba?\(([^)]+)\)/.exec(color || '');
     if (!m) return null;
     const p = m[1].split(',').map(function (v) { return parseFloat(v); });
@@ -88,8 +95,8 @@
     return (0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]) / 255;
   }
 
-  function pageIsDark() {
-    let el = document.body;
+  function pageIsDark(): boolean {
+    let el: HTMLElement | null = document.body;
     while (el) {
       const lum = luminance(getComputedStyle(el).backgroundColor);
       if (lum !== null) return lum < 0.45;
@@ -120,7 +127,7 @@
     'data-color-scheme', 'data-ui-theme', 'theme'
   ];
 
-  function tokenMode(value) {
+  function tokenMode(value: string | null): 'dark' | 'light' | null {
     const raw = String(value || '').trim().toLowerCase();
     if (!raw) return null;
     const first = raw.split(/[\s,/|_]+/)[0];
@@ -129,7 +136,7 @@
     return null;
   }
 
-  function classMode(el) {
+  function classMode(el: Element | null): 'dark' | 'light' | null {
     if (!el || !el.classList) return null;
     let dark = false;
     let light = false;
@@ -143,7 +150,7 @@
     return null;
   }
 
-  function attrMode(el) {
+  function attrMode(el: Element | null): 'dark' | 'light' | null {
     if (!el || !el.getAttribute) return null;
     for (let i = 0; i < THEME_ATTRS.length; i++) {
       const mode = tokenMode(el.getAttribute(THEME_ATTRS[i]));
@@ -154,7 +161,7 @@
     return null;
   }
 
-  function colorSchemeMode(el) {
+  function colorSchemeMode(el: Element | null): 'dark' | 'light' | null {
     if (!el) return null;
     const cs = (getComputedStyle(el).colorScheme || '').toLowerCase().trim();
     if (!cs || cs === 'normal' || cs === 'auto') return null;
@@ -183,7 +190,7 @@
 
   /* ── marking ───────────────────────────────────────────────────────── */
 
-  function usableRects(el) {
+  function usableRects(el: Element): DOMRect[] {
     const out = [];
     const rects = el.getClientRects();
     for (let i = 0; i < rects.length; i++) {
@@ -196,7 +203,7 @@
     return out;
   }
 
-  function pickRect(el, x, y) {
+  function pickRect(el: Element, x?: number, y?: number): DOMRect | null {
     const rects = usableRects(el);
     if (!rects.length) return null;
     if (x != null && y != null) {
@@ -224,7 +231,7 @@
     if (uiHost && uiHost.isConnected && uiShadow && tipEl && flashBox) return;
     dropUi();
     document.querySelectorAll('[data-isslop="ui"]').forEach(function (n) {
-      n.parentNode.removeChild(n);
+      n.parentNode?.removeChild(n);
     });
     uiHost = document.createElement('div');
     uiHost.setAttribute('data-isslop', 'ui');
@@ -289,12 +296,13 @@
     tipEl = tip;
   }
 
-  function getTip() {
+  function getTip(): HTMLElement {
     ensureUi();
+    if (!tipEl) throw new Error('tooltip missing');
     return tipEl;
   }
 
-  function fillTip(tip, mark) {
+  function fillTip(tip: HTMLElement, mark: Element): void {
     const name = tip.querySelector('.slopspotter-tip-name');
     const level = tip.querySelector('.slopspotter-tip-level');
     const why = tip.querySelector('.slopspotter-tip-why');
@@ -303,11 +311,11 @@
     const metas = tip.querySelectorAll('.slopspotter-tip-meta');
     const tier = mark.getAttribute('data-slop-tier');
     if (name) name.textContent = mark.getAttribute('data-slop-name') || '';
-    if (level) level.textContent = TIER_NAME[tier] || '';
+    if (level) level.textContent = TIER_NAME[tier || ''] || '';
     if (why) why.textContent = mark.getAttribute('data-slop-why') || '';
 
     const suggestion = mark.getAttribute('data-slop-try') || '';
-    if (instead) {
+    if (instead instanceof HTMLElement) {
       instead.hidden = !suggestion;
       if (tryEl) tryEl.textContent = suggestion;
     }
@@ -329,7 +337,7 @@
     }
   }
 
-  function placeTip(tip, rect) {
+  function placeTip(tip: HTMLElement, rect: DOMRect): void {
     const pad = 8;
     const gap = 6;
     tip.style.left = '0px';
@@ -353,7 +361,7 @@
     tipEl.hidden = true;
   }
 
-  function showTipFor(mark) {
+  function showTipFor(mark: HTMLElement): void {
     const tip = getTip();
     fillTip(tip, mark);
     const rect = pickRect(mark);
@@ -364,32 +372,34 @@
     placeTip(tip, rect);
   }
 
-  function markFromEvent(e) {
+  function markFromEvent(e: Event): HTMLElement | null {
     const t = e.target;
-    if (!t || !t.closest) return null;
+    if (!(t instanceof Element)) return null;
     return t.closest('.' + MARK_CLASS);
   }
 
-  listen(document, 'pointerover', function (e) {
+  listen(document, 'pointerover', function (e: Event) {
     const mark = markFromEvent(e);
     if (!mark) return;
     pinnedMark = null;
     showTipFor(mark);
   });
 
-  listen(document, 'pointermove', function (e) {
+  listen(document, 'pointermove', function (e: Event) {
     const mark = markFromEvent(e);
     if (!mark || !tipEl || tipEl.hidden) return;
-    const rect = pickRect(mark, e.clientX, e.clientY);
+    const pe = e as PointerEvent;
+    const rect = pickRect(mark, pe.clientX, pe.clientY);
     if (rect) placeTip(tipEl, rect);
   });
 
-  listen(document, 'pointerout', function (e) {
+  listen(document, 'pointerout', function (e: Event) {
     if (pinnedMark) return;
     const from = markFromEvent(e);
     if (!from) return;
-    const next = e.relatedTarget && e.relatedTarget.closest
-      ? e.relatedTarget.closest('.' + MARK_CLASS)
+    const related = (e as PointerEvent).relatedTarget;
+    const next = related instanceof Element
+      ? related.closest('.' + MARK_CLASS)
       : null;
     if (from !== next) hideTip();
   });
@@ -426,7 +436,7 @@
   }
 
   function collectFindings() {
-    const findings = [];
+    const findings: import('./types').Finding[] = [];
     document.querySelectorAll('.' + MARK_CLASS).forEach(function (mark) {
       const text = (mark.textContent || '').replace(/\s+/g, ' ').trim();
       const tier = Number(mark.getAttribute('data-slop-tier') || 1);
@@ -446,7 +456,7 @@
       window.clearTimeout(flashTimer);
       flashTimer = 0;
     }
-    if (flashBox) flashBox.replaceChildren();
+    flashBox?.replaceChildren();
   }
 
   function layoutFlash() {
@@ -455,6 +465,7 @@
       return;
     }
     ensureUi();
+    if (!flashBox) return;
     flashBox.replaceChildren();
     const rects = flashMark.getClientRects();
     const n = rects.length;
@@ -479,7 +490,7 @@
     }
   }
 
-  function jumpTo(id) {
+  function jumpTo(id: string): boolean {
     if (!MARK_ID_RE.test(id || '')) return false;
     const mark = document.getElementById(id);
     if (!mark || !mark.classList || !mark.classList.contains(MARK_CLASS)) return false;
@@ -497,7 +508,7 @@
     return true;
   }
 
-  function applyInkScheme(scheme) {
+  function applyInkScheme(scheme?: string): boolean {
     const dark = scheme === 'dark' ? true
       : scheme === 'light' ? false
       : pageIsDark();
@@ -505,20 +516,20 @@
     return dark;
   }
 
-  function applyTierFilter(hidden) {
-    [1, 2, 3].forEach(function (tier) {
+  function applyTierFilter(hidden?: { 1?: boolean; 2?: boolean; 3?: boolean } | null): void {
+    ([1, 2, 3] as const).forEach(function (tier) {
       document.documentElement.classList.toggle('slopspotter-hide-t' + tier, !!(hidden && hidden[tier]));
     });
     if (pinnedMark) {
       const tier = Number(pinnedMark.getAttribute('data-slop-tier'));
-      if (hidden && hidden[tier]) {
+      if ((tier === 1 || tier === 2 || tier === 3) && hidden && hidden[tier]) {
         pinnedMark = null;
         hideTip();
       }
     }
   }
 
-  function scanPage(scope, scheme) {
+  function scanPage(scope: string, scheme?: string): import('./types').PageSummary {
     pinnedMark = null;
     unrenderedCache = Scan.createCache();
     clearHighlights();
@@ -530,33 +541,29 @@
     const picked = wantArticle ? pickContentRoot() : { root: document.body, kind: 'body' };
     const root = (picked.root && picked.root.nodeType === 1) ? picked.root : document.body;
 
-    const engine = window.SlopEngine;
-    const packs = window.SlopPacks;
     const htmlLang = document.documentElement.lang
-      || (document.querySelector('meta[http-equiv="content-language"]') || {}).content
+      || (document.querySelector('meta[http-equiv="content-language"]') as HTMLMetaElement | null)?.content
       || '';
-    const sample = root.innerText ? root.innerText.slice(0, 4000) : '';
-    const pack = (packs && packs.detect)
-      ? (packs.detect(htmlLang, sample) || packs.current())
-      : packs && packs.current && packs.current();
+    const sample = root instanceof HTMLElement && root.innerText ? root.innerText.slice(0, 4000) : '';
+    const pack = detectPack(htmlLang, sample);
     const rules = pack && pack.rules;
     const empty = {
       score: 0,
       label: 'Reads human',
       wordCount: 0,
       onDark: onDark,
-      scheme: onDark ? 'dark' : 'light',
+      scheme: (onDark ? 'dark' : 'light') as 'dark' | 'light',
       tiers: { 1: 0, 2: 0, 3: 0 },
       categories: [],
       findings: [],
-      scope: wantArticle ? 'article' : 'page',
+      scope: (wantArticle ? 'article' : 'page') as 'article' | 'page',
       root: picked.kind || 'body'
     };
     if (!engine || !rules) return empty;
 
     const nodes = Scan.collectTextNodes(root, { stripChrome: wantArticle, cache: unrenderedCache });
     let scannedText = '';
-    const nodeMatches = [];
+    const nodeMatches: { node: Text; text: string; matches: import('./types').Match[] }[] = [];
     const t0 = performance.now();
     let scannedChars = 0;
 
@@ -574,22 +581,24 @@
     const dashCount = engine.countEmDashes(scannedText, pack);
     const flagDashes = engine.emDashShouldFlag(dashCount, wordCount, pack);
 
-    const allMatches = [];
+    const allMatches: import('./types').Match[] = [];
     for (const item of nodeMatches) {
       let matches = item.matches;
       if (flagDashes) {
         matches = engine.mergeOverlaps(matches.concat(engine.findEmDashMatches(item.text, pack)));
       }
       Scan.applyMatches(item.node, matches);
-      allMatches.push.apply(allMatches, matches);
+      allMatches.push(...matches);
     }
 
-    const summary = engine.summarize(allMatches, wordCount);
-    summary.onDark = onDark;
-    summary.scheme = onDark ? 'dark' : 'light';
-    summary.findings = collectFindings();
-    summary.scope = wantArticle ? 'article' : 'page';
-    summary.root = picked.kind || 'body';
+    const summary: import('./types').PageSummary = {
+      ...engine.summarize(allMatches, wordCount),
+      onDark,
+      scheme: onDark ? 'dark' : 'light',
+      findings: collectFindings(),
+      scope: wantArticle ? 'article' : 'page',
+      root: picked.kind || 'body'
+    };
     if (pack) {
       summary.pack = {
         id: pack.id,
@@ -600,35 +609,36 @@
     return summary;
   }
 
-  function handleMessage(msg, sender, sendResponse) {
-    if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return;
+  function handleMessage(msg: unknown, sender: chrome.runtime.MessageSender, sendResponse: (r?: unknown) => void): void {
+    if (!msg || typeof msg !== 'object' || !('type' in msg) || typeof (msg as { type: unknown }).type !== 'string') return;
+    const data = msg as { type: string; scope?: string; scheme?: string; hidden?: { 1?: boolean; 2?: boolean; 3?: boolean }; id?: string };
     if (sender && sender.id && sender.id !== chrome.runtime.id) return;
-    if (msg.type === 'SLOP_PING') {
+    if (data.type === 'SLOP_PING') {
       sendResponse({ ok: true });
       return;
     }
-    if (msg.type === 'SLOP_SCAN') {
-      const scope = msg.scope === 'page' ? 'page' : 'article';
-      const scheme = msg.scheme === 'dark' || msg.scheme === 'light' ? msg.scheme : undefined;
+    if (data.type === 'SLOP_SCAN') {
+      const scope = data.scope === 'page' ? 'page' : 'article';
+      const scheme = data.scheme === 'dark' || data.scheme === 'light' ? data.scheme : undefined;
       sendResponse(scanPage(scope, scheme));
       return;
     }
-    if (msg.type === 'SLOP_SCHEME') {
-      const scheme = msg.scheme === 'dark' || msg.scheme === 'light' ? msg.scheme : undefined;
+    if (data.type === 'SLOP_SCHEME') {
+      const scheme = data.scheme === 'dark' || data.scheme === 'light' ? data.scheme : undefined;
       sendResponse({ ok: true, onDark: applyInkScheme(scheme) });
       return;
     }
-    if (msg.type === 'SLOP_FILTER') {
-      const src = msg.hidden && typeof msg.hidden === 'object' ? msg.hidden : {};
+    if (data.type === 'SLOP_FILTER') {
+      const src = data.hidden && typeof data.hidden === 'object' ? data.hidden : {};
       applyTierFilter({ 1: !!src[1], 2: !!src[2], 3: !!src[3] });
       sendResponse({ ok: true });
       return;
     }
-    if (msg.type === 'SLOP_JUMP') {
-      sendResponse({ ok: jumpTo(typeof msg.id === 'string' ? msg.id : '') });
+    if (data.type === 'SLOP_JUMP') {
+      sendResponse({ ok: jumpTo(typeof data.id === 'string' ? data.id : '') });
       return;
     }
-    if (msg.type === 'SLOP_CLEAR') {
+    if (data.type === 'SLOP_CLEAR') {
       pinnedMark = null;
       clearHighlights();
       sendResponse({ ok: true });
@@ -653,4 +663,3 @@
       item[0].removeEventListener(item[1], item[2], item[3]);
     });
   };
-})();

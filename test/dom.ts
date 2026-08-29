@@ -1,13 +1,12 @@
-'use strict';
+import { JSDOM } from 'jsdom';
+import * as scan from '../src/scan-dom';
+import * as engine from '../src/engine';
 
-const { JSDOM } = require('jsdom');
-const scan = require('./scan-dom.js');
-const engine = require('./engine.js');
 
 let passed = 0;
 let failed = 0;
 
-function assert(cond, msg) {
+function assert(cond: unknown, msg: string): void {
   if (cond) {
     passed += 1;
     console.log('  ok  ' + msg);
@@ -19,7 +18,7 @@ function assert(cond, msg) {
 
 const COPY = "Let's delve into the tapestry of product writing.";
 
-function withDom(html, fn) {
+function withDom(html: string, fn: (doc: Document, win: Window & typeof globalThis) => void): void {
   const dom = new JSDOM('<!doctype html><html><body>' + html + '</body></html>', {
     pretendToBeVisual: true
   });
@@ -33,33 +32,42 @@ function withDom(html, fn) {
     Element: global.Element,
     Text: global.Text
   };
-  global.window = dom.window;
-  global.document = dom.window.document;
-  global.Node = dom.window.Node;
-  global.NodeFilter = dom.window.NodeFilter;
-  global.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
-  global.HTMLElement = dom.window.HTMLElement;
-  global.Element = dom.window.Element;
-  global.Text = dom.window.Text;
+  (globalThis as any).window = dom.window;
+  (globalThis as any).document = dom.window.document;
+  (globalThis as any).Node = dom.window.Node;
+  (globalThis as any).NodeFilter = dom.window.NodeFilter;
+  (globalThis as any).getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
+  (globalThis as any).HTMLElement = dom.window.HTMLElement;
+  (globalThis as any).Element = dom.window.Element;
+  (globalThis as any).Text = dom.window.Text;
   scan.reset();
   try {
-    fn(dom.window.document, dom.window);
+    fn(dom.window.document, dom.window as unknown as Window & typeof globalThis);
   } finally {
-    global.document = prev.document;
-    global.window = prev.window;
-    global.Node = prev.Node;
-    global.NodeFilter = prev.NodeFilter;
-    global.getComputedStyle = prev.getComputedStyle;
-    global.HTMLElement = prev.HTMLElement;
-    global.Element = prev.Element;
-    global.Text = prev.Text;
+    (globalThis as any).document = prev.document;
+    (globalThis as any).window = prev.window;
+    (globalThis as any).Node = prev.Node;
+    (globalThis as any).NodeFilter = prev.NodeFilter;
+    (globalThis as any).getComputedStyle = prev.getComputedStyle;
+    (globalThis as any).HTMLElement = prev.HTMLElement;
+    (globalThis as any).Element = prev.Element;
+    (globalThis as any).Text = prev.Text;
     dom.window.close();
   }
 }
 
-function firstText(el) {
+function firstText(el: Element | null): Text {
+  if (!el) throw new Error('missing element');
   const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-  return w.nextNode();
+  const node = w.nextNode();
+  if (!(node instanceof Text)) throw new Error('no text node');
+  return node;
+}
+
+function mustId(doc: Document, id: string): HTMLElement {
+  const el = doc.getElementById(id);
+  if (!el) throw new Error('missing #' + id);
+  return el;
 }
 
 console.log('isSlop DOM tests\n');
@@ -69,8 +77,8 @@ withDom(
   '<p id="copy">' + COPY + '</p>' +
   '<div id="editor" contenteditable="true">' + COPY + '</div>',
   function (doc) {
-    const editor = doc.getElementById('editor');
-    const copy = doc.getElementById('copy');
+    const editor = mustId(doc, 'editor');
+    const copy = mustId(doc, 'copy');
     const editorText = firstText(editor);
     const copyText = firstText(copy);
     const matches = engine.mergeOverlaps(engine.findMatches(COPY));
@@ -107,11 +115,11 @@ withDom(
       const hits = engine.mergeOverlaps(engine.findMatches(node.nodeValue || ''));
       scan.applyMatches(node, hits);
     });
-    assert(doc.getElementById('editor').querySelectorAll('.' + scan.MARK_CLASS).length === 0,
+    assert(mustId(doc, 'editor').querySelectorAll('.' + scan.MARK_CLASS).length === 0,
       'scan path never wraps the editor');
-    assert(doc.getElementById('box').querySelectorAll('.' + scan.MARK_CLASS).length === 0,
+    assert(mustId(doc, 'box').querySelectorAll('.' + scan.MARK_CLASS).length === 0,
       'scan path never wraps role=textbox');
-    assert(doc.getElementById('copy').querySelectorAll('.' + scan.MARK_CLASS).length >= 1,
+    assert(mustId(doc, 'copy').querySelectorAll('.' + scan.MARK_CLASS).length >= 1,
       'scan path wraps the article');
   }
 );
@@ -121,10 +129,10 @@ withDom('<p id="copy">' + COPY + '</p>', function (doc, win) {
   doc.designMode = 'on';
   const nodes = scan.collectTextNodes(doc.body, { stripChrome: false });
   assert(nodes.length === 0, 'designMode=on yields no text nodes (got ' + nodes.length + ')');
-  const text = firstText(doc.getElementById('copy'));
+  const text = firstText(mustId(doc, 'copy'));
   const hits = engine.mergeOverlaps(engine.findMatches(COPY));
   scan.applyMatches(text, hits);
-  assert(doc.getElementById('copy').querySelectorAll('.' + scan.MARK_CLASS).length === 0,
+  assert(mustId(doc, 'copy').querySelectorAll('.' + scan.MARK_CLASS).length === 0,
     'wrapRange refuses designMode documents');
   void win;
 });

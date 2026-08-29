@@ -15,12 +15,9 @@
 //   https://searchenginewatch.com/what-is-ai-slop/
 // - no-ai-slop editor skill — throat-clearing, metadiscourse, colon reveals, Q&A setups
 
-(function (root) {
-  const F = root.SlopFinders || require('../finders.js');
-  const register = root.registerPack || require('./registry.js').registerPack;
-  const makeChainFinder = F.makeChainFinder;
-  const makeEchoFinder = F.makeEchoFinder;
-  const makeAnaphoraFinder = F.makeAnaphoraFinder;
+import { makeChainFinder, makeEchoFinder, makeAnaphoraFinder } from '../finders';
+import { registerPack } from './registry';
+import type { Pack } from '../types';
 
   const ANAPHORA_SKIP = /^(?:i|it|the|a|an|this|that|we|you|they|he|she|there|but|and|so|in|as|if|my|his|her|their|its|these|those|for|at|on|of|to|is|was)$/i;
 
@@ -491,7 +488,7 @@
   }
 ];
 
-  const pack = {
+const pack: Pack = {
     id: 'en',
     name: 'English',
     verified: true,
@@ -518,6 +515,5 @@
     }
   };
 
-  register(pack);
-  if (typeof module !== 'undefined' && module.exports) module.exports = pack;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+registerPack(pack);
+export default pack;

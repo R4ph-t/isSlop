@@ -15,12 +15,9 @@
 // - Walter, «Humanizar textos de ChatGPT»
 //   https://walterwrites.ai/es/humanizar-texto-de-chatgpt/
 
-(function (root) {
-  const F = root.SlopFinders || require('../finders.js');
-  const register = root.registerPack || require('./registry.js').registerPack;
-  const makeChainFinder = F.makeChainFinder;
-  const makeEchoFinder = F.makeEchoFinder;
-  const makeAnaphoraFinder = F.makeAnaphoraFinder;
+import { makeChainFinder, makeEchoFinder, makeAnaphoraFinder } from '../finders';
+import { registerPack } from './registry';
+import type { Pack } from '../types';
 
   const ES_WORD = /[\p{L}\p{N}'’-]+/gu;
   const ES_HEAD = /[\p{L}'’-]+/u;
@@ -28,7 +25,7 @@
 
   const ANAPHORA_SKIP = /^(?:el|la|los|las|un|una|unos|unas|yo|tú|tu|vos|usted|él|ella|nosotros|nosotras|vosotros|vosotras|ustedes|ellos|ellas|me|te|se|le|les|lo|nos|os|de|del|al|a|en|y|o|que|quien|quién|si|sí|no|por|para|con|sin|su|sus|mi|mis|este|esta|estos|estas|eso|esa)$/i;
 
-  function esRe(inner, flags) {
+  function esRe(inner: string, flags?: string) {
     return new RegExp(String.raw`(?<![\p{L}\p{N}_])(?:${inner})(?![\p{L}\p{N}_])`, flags || 'giu');
   }
 
@@ -306,7 +303,7 @@
     }
   ];
 
-  const pack = {
+const pack: Pack = {
     id: 'es',
     name: 'Spanish',
     verified: false,
@@ -331,6 +328,5 @@
     }
   };
 
-  register(pack);
-  if (typeof module !== 'undefined' && module.exports) module.exports = pack;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+registerPack(pack);
+export default pack;

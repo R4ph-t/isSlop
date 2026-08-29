@@ -1,20 +1,39 @@
-const hideBtn = document.getElementById('hide');
-const rescanBtn = document.getElementById('rescan');
-const statusEl = document.getElementById('status');
-const resultsEl = document.getElementById('results');
+function mustEl<T extends HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error('missing #' + id);
+  return el as T;
+}
+
+const hideBtn = mustEl<HTMLButtonElement>('hide');
+const rescanBtn = mustEl<HTMLButtonElement>('rescan');
+const statusEl = mustEl<HTMLElement>('status');
+const resultsEl = mustEl<HTMLElement>('results');
+
+type ScanScope = 'article' | 'page';
+type HiddenTiers = { 1: boolean; 2: boolean; 3: boolean };
 
 let scanned = false;
-let scanScope = 'article';
-let lastSummary = null;
-const hiddenTiers = { 1: false, 2: false, 3: false };
+let scanScope: ScanScope = 'article';
+let lastSummary: import('./types').PageSummary | null = null;
+const hiddenTiers: HiddenTiers = { 1: false, 2: false, 3: false };
 const isPreview = new URLSearchParams(location.search).has('preview');
+
+function requireTabId(tab: chrome.tabs.Tab): number {
+  if (tab.id == null) throw new Error('No tab id');
+  return tab.id;
+}
+
+function isTier(n: number): n is 1 | 2 | 3 {
+  return n === 1 || n === 2 || n === 3;
+}
+
 
 if (!isPreview) {
   document.documentElement.dataset.theme =
     matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-function setStatus(text) {
+function setStatus(text: string): void {
   if (!text) {
     statusEl.hidden = true;
     statusEl.textContent = '';
@@ -24,12 +43,12 @@ function setStatus(text) {
   statusEl.textContent = text;
 }
 
-function setBusy(busy) {
+function setBusy(busy: boolean): void {
   hideBtn.disabled = busy || !scanned;
   rescanBtn.disabled = busy;
 }
 
-function setScanned(on) {
+function setScanned(on: boolean): void {
   scanned = on;
   document.body.classList.toggle('is-scanned', on);
   hideBtn.disabled = !on;
@@ -42,7 +61,7 @@ async function activeTab() {
   return tab;
 }
 
-async function inject(tabId) {
+async function inject(tabId: number): Promise<void> {
   try {
     await chrome.scripting.removeCSS({ target: { tabId }, files: ['highlight.css'] });
   } catch (err) {
@@ -51,15 +70,11 @@ async function inject(tabId) {
   await chrome.scripting.insertCSS({ target: { tabId }, files: ['highlight.css'] });
   await chrome.scripting.executeScript({
     target: { tabId },
-    files: ['finders.js', 'packs/registry.js']
-      .concat((typeof globalThis.SLOP_PACK_IDS !== 'undefined' ? globalThis.SLOP_PACK_IDS : ['en']).map(function (id) {
-        return 'packs/' + id + '.js';
-      }))
-      .concat(['engine.js', 'scan-dom.js', 'content.js'])
+    files: ['content.js']
   });
 }
 
-async function ensureInjected(tabId) {
+async function ensureInjected(tabId: number): Promise<void> {
   try {
     const pong = await chrome.tabs.sendMessage(tabId, { type: 'SLOP_PING' });
     if (pong && pong.ok) return;
@@ -69,13 +84,13 @@ async function ensureInjected(tabId) {
   await inject(tabId);
 }
 
-function displayLabel(label) {
+function displayLabel(label: string): string {
   if (label === 'Heavy slop') return 'Heavily patterned';
   if (label === 'Some slop patterns') return 'Some patterning';
   return label;
 }
 
-function paintBar(score, tiers) {
+function paintBar(score: number, tiers?: { 1?: number; 2?: number; 3?: number }): void {
   const bar = document.getElementById('bar');
   if (!bar) return;
   const t3 = (tiers && tiers[3]) || 0;
@@ -87,11 +102,11 @@ function paintBar(score, tiers) {
     : [0, 0, 0];
   ['b3', 'b2', 'b1'].forEach(function (cls, i) {
     const el = bar.querySelector('.' + cls);
-    if (el) el.style.flex = '0 0 ' + (parts[i] * score).toFixed(2) + '%';
+    if (el instanceof HTMLElement) el.style.flex = '0 0 ' + ((parts[i] || 0) * score).toFixed(2) + '%';
   });
 }
 
-function blurb(n, score, where) {
+function blurb(n: number, score: number, where?: string): string {
   const place = where || 'the page';
   if (!n) return 'No flags. ' + place.charAt(0).toUpperCase() + place.slice(1) + ' didn’t trip a rule.';
   if (score < 15) {
@@ -101,13 +116,13 @@ function blurb(n, score, where) {
   return who + ' almost all of it. The rest of ' + place + ' reads as written by a person.';
 }
 
-function scopeWhere(summary) {
+function scopeWhere(summary?: import('./types').PageSummary | null): string {
   return summary && summary.scope === 'article' && summary.root !== 'body'
     ? 'the article'
     : 'the page';
 }
 
-function scopeNote(summary) {
+function scopeNote(summary?: import('./types').PageSummary | null): string {
   if (!summary) return '';
   if (summary.scope === 'page') return '';
   if (summary.root === 'body') return 'No article block found. Skipped nav, footer, and asides.';
@@ -115,7 +130,7 @@ function scopeNote(summary) {
 }
 
 function paintScope() {
-  document.querySelectorAll('[data-scope]').forEach(function (btn) {
+  document.querySelectorAll<HTMLButtonElement>('[data-scope]').forEach(function (btn) {
     const on = btn.dataset.scope === scanScope;
     btn.classList.toggle('is-on', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -123,8 +138,9 @@ function paintScope() {
 }
 
 function paintLevels() {
-  document.querySelectorAll('.level-toggle').forEach(function (btn) {
+  document.querySelectorAll<HTMLButtonElement>('.level-toggle').forEach(function (btn) {
     const tier = Number(btn.dataset.tier);
+    if (!isTier(tier)) return;
     const on = !hiddenTiers[tier];
     btn.classList.toggle('is-off', !on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -133,22 +149,22 @@ function paintLevels() {
   });
 }
 
-function visibleFindings(list) {
+function visibleFindings(list?: import('./types').Finding[] | null): import('./types').Finding[] {
   const allOff = hiddenTiers[1] && hiddenTiers[2] && hiddenTiers[3];
   if (allOff) return [];
   return (list || []).filter(function (hit) {
-    return !hiddenTiers[hit.tier];
+    return !isTier(hit.tier) || !hiddenTiers[hit.tier];
   });
 }
 
-function tierName(tier) {
+function tierName(tier: number): string {
   if (tier === 3) return 'HEAVY';
   if (tier === 2) return 'MEDIUM';
   return 'LIGHT';
 }
 
-function renderFindings(list) {
-  const root = document.getElementById('findings');
+function renderFindings(list?: import('./types').Finding[] | null): void {
+  const root = mustEl('findings');
   root.replaceChildren();
   if (!list || !list.length) {
     const li = document.createElement('li');
@@ -192,7 +208,7 @@ function renderFindings(list) {
   }
 }
 
-function render(summary, elapsedMs) {
+function render(summary: import('./types').PageSummary, elapsedMs?: number): void {
   resultsEl.hidden = false;
   setScanned(true);
   lastSummary = summary || lastSummary;
@@ -203,19 +219,19 @@ function render(summary, elapsedMs) {
   const t1 = tiers[1] || 0;
   const total = t3 + t2 + t1;
 
-  document.getElementById('score').textContent = String(summary.score);
-  document.getElementById('label').textContent = displayLabel(summary.label);
-  document.getElementById('words').textContent = Number(summary.wordCount || 0).toLocaleString('en-US');
-  const elapsed = document.getElementById('elapsed');
+  mustEl('score').textContent = String(summary.score);
+  mustEl('label').textContent = displayLabel(summary.label);
+  mustEl('words').textContent = Number(summary.wordCount || 0).toLocaleString('en-US');
+  const elapsed = mustEl('elapsed');
   elapsed.textContent = elapsedMs != null ? ' • ' + (elapsedMs / 1000).toFixed(1) + 's' : '';
 
-  [['t3', t3], ['t2', t2], ['t1', t1], ['t3b', t3], ['t2b', t2], ['t1b', t1],
-   ['total', total]].forEach(function (pair) {
+  ([['t3', t3], ['t2', t2], ['t1', t1], ['t3b', t3], ['t2b', t2], ['t1b', t1],
+   ['total', total]] as Array<[string, number]>).forEach(function (pair) {
     const el = document.getElementById(pair[0]);
     if (el) el.textContent = String(pair[1]);
   });
   paintBar(summary.score, tiers);
-  document.getElementById('blurb').textContent = blurb(total, summary.score, scopeWhere(summary));
+  mustEl('blurb').textContent = blurb(total, summary.score, scopeWhere(summary));
   const noteEl = document.getElementById('scope-note');
   if (noteEl) noteEl.textContent = scopeNote(summary);
   paintScope();
@@ -245,12 +261,13 @@ async function runScan() {
   const t0 = performance.now();
   try {
     const tab = await activeTab();
-    await ensureInjected(tab.id);
-    const summary = await chrome.tabs.sendMessage(tab.id, {
+    const tabId = requireTabId(tab);
+    await ensureInjected(tabId);
+    const summary = await chrome.tabs.sendMessage(tabId, {
       type: 'SLOP_SCAN',
       scope: scanScope
     });
-    await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_FILTER', hidden: hiddenTiers });
+    await chrome.tabs.sendMessage(tabId, { type: 'SLOP_FILTER', hidden: hiddenTiers });
     statusEl.classList.remove('is-error');
     render(summary, performance.now() - t0);
     setStatus('');
@@ -267,12 +284,13 @@ async function hideHighlights() {
   setBusy(true);
   try {
     const tab = await activeTab();
-    await ensureInjected(tab.id);
-    await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_CLEAR' });
+    const tabId = requireTabId(tab);
+    await ensureInjected(tabId);
+    await chrome.tabs.sendMessage(tabId, { type: 'SLOP_CLEAR' });
     statusEl.classList.remove('is-error');
     setScanned(false);
-    document.getElementById('words').textContent = '0';
-    document.getElementById('elapsed').textContent = '';
+    mustEl('words').textContent = '0';
+    mustEl('elapsed').textContent = '';
     setStatus('');
   } catch (err) {
     statusEl.classList.add('is-error');
@@ -282,11 +300,11 @@ async function hideHighlights() {
   }
 }
 
-async function sendScheme(scheme) {
+async function sendScheme(scheme?: string): Promise<void> {
   if (isPreview) return;
   try {
     const tab = await activeTab();
-    await chrome.tabs.sendMessage(tab.id, {
+    await chrome.tabs.sendMessage(requireTabId(tab), {
       type: 'SLOP_SCHEME',
       scheme: scheme || currentScheme()
     });
@@ -299,7 +317,7 @@ async function sendFilter() {
   if (isPreview) return;
   try {
     const tab = await activeTab();
-    await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_FILTER', hidden: hiddenTiers });
+    await chrome.tabs.sendMessage(requireTabId(tab), { type: 'SLOP_FILTER', hidden: hiddenTiers });
   } catch (err) {
     /* page gone */
   }
@@ -319,10 +337,10 @@ rescanBtn.addEventListener('click', function () {
   runScan();
 });
 
-document.getElementById('close').addEventListener('click', async function () {
+mustEl('close').addEventListener('click', async function () {
   try {
     const tab = await activeTab();
-    chrome.tabs.sendMessage(tab.id, { type: 'ISSLOP_PANEL_CLOSE' }, function () {
+    chrome.tabs.sendMessage(requireTabId(tab), { type: 'ISSLOP_PANEL_CLOSE' }, function () {
       void chrome.runtime.lastError;
     });
   } catch (err) {
@@ -330,13 +348,16 @@ document.getElementById('close').addEventListener('click', async function () {
   }
 });
 
-document.getElementById('findings').addEventListener('click', async function (e) {
-  const btn = e.target.closest('.finding');
-  if (!btn || !btn.dataset.id) return;
+mustEl('findings').addEventListener('click', async function (e) {
+  const target = e.target;
+  if (!(target instanceof Element)) return;
+  const btn = target.closest('.finding');
+  if (!(btn instanceof HTMLElement) || !btn.dataset.id) return;
   try {
     const tab = await activeTab();
-    await ensureInjected(tab.id);
-    await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_JUMP', id: btn.dataset.id });
+    const tabId = requireTabId(tab);
+    await ensureInjected(tabId);
+    await chrome.tabs.sendMessage(tabId, { type: 'SLOP_JUMP', id: btn.dataset.id });
   } catch (err) {
     /* page gone */
   }
@@ -346,12 +367,12 @@ function currentScheme() {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
-function applyScheme(scheme, syncPage) {
+function applyScheme(scheme: string, syncPage?: boolean): void {
   const next = scheme === 'dark' ? 'dark' : 'light';
   document.documentElement.dataset.theme = next;
   const shell = document.querySelector('.shell');
-  if (shell) shell.style.colorScheme = next;
-  document.querySelectorAll('[data-scheme]').forEach(function (btn) {
+  if (shell instanceof HTMLElement) shell.style.colorScheme = next;
+  document.querySelectorAll<HTMLButtonElement>('[data-scheme]').forEach(function (btn) {
     btn.classList.toggle('is-on', btn.dataset.scheme === next);
   });
   const levels = document.getElementById('levels');
@@ -361,13 +382,13 @@ function applyScheme(scheme, syncPage) {
 
 applyScheme(currentScheme(), false);
 
-document.querySelectorAll('[data-scheme]').forEach(function (btn) {
+document.querySelectorAll<HTMLButtonElement>('[data-scheme]').forEach(function (btn) {
   btn.addEventListener('click', function () {
-    applyScheme(btn.dataset.scheme);
+    applyScheme(btn.dataset.scheme || 'light');
   });
 });
 
-document.querySelectorAll('[data-scope]').forEach(function (btn) {
+document.querySelectorAll<HTMLButtonElement>('[data-scope]').forEach(function (btn) {
   btn.addEventListener('click', function () {
     const next = btn.dataset.scope === 'page' ? 'page' : 'article';
     if (next === scanScope) return;
@@ -384,11 +405,13 @@ document.querySelectorAll('[data-scope]').forEach(function (btn) {
   });
 });
 
-document.getElementById('levels').addEventListener('click', function (e) {
-  const btn = e.target.closest('.level-toggle');
-  if (!btn) return;
+mustEl('levels').addEventListener('click', function (e) {
+  const target = e.target;
+  if (!(target instanceof Element)) return;
+  const btn = target.closest('.level-toggle');
+  if (!(btn instanceof HTMLElement)) return;
   const tier = Number(btn.dataset.tier);
-  if (!tier) return;
+  if (!isTier(tier)) return;
   hiddenTiers[tier] = !hiddenTiers[tier];
   applyFindingsFilter();
   sendFilter();
@@ -409,6 +432,7 @@ if (isPreview) {
     scope: 'article',
     root: 'article',
     tiers: { 1: 3, 2: 3, 3: 4 },
+    categories: [],
     findings: [
       { id: 'p1', name: 'Closing platitude', snippet: 'At the end of the day, the possibilities are truly endless.', tier: 3 },
       { id: 'p2', name: 'Template opener', snippet: "In today's rapidly evolving digital landscape", tier: 2 },

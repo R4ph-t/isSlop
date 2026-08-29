@@ -6,7 +6,7 @@ chrome.action.onClicked.addListener(async (tab) => {
       files: ['panel.js']
     });
   } catch (err) {
-    const message = (err && err.message) || String(err);
+    const message = err instanceof Error ? err.message : String(err);
     if (
       /cannot be scripted|cannot access|chrome:\/\/|edge:\/\/|extensions gallery/i.test(message)
     ) {

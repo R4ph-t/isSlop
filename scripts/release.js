@@ -15,7 +15,7 @@ const root = path.join(__dirname, '..');
 const manifestPath = path.join(root, 'manifest.json');
 const kind = (process.argv[2] || '').toLowerCase();
 
-const FILES = [
+const EXT_FILES = [
   'manifest.json',
   'background.js',
   'panel.js',
@@ -24,13 +24,6 @@ const FILES = [
   'popup.js',
   'highlight.css',
   'content.js',
-  'engine.js',
-  'scan-dom.js',
-  'finders.js',
-  'packs/registry.js',
-  'packs/en.js',
-  'packs/fr.js',
-  'packs/es.js',
   'fonts/manrope-var.woff2',
   'fonts/jetbrains-mono-var.woff2',
   'fonts/OFL-Manrope.txt',
@@ -58,25 +51,28 @@ function bumpVer(v, how) {
   throw new Error('unknown bump ' + how);
 }
 
-function packZip(verStr) {
-  const missing = FILES.filter(function (f) {
-    return !fs.existsSync(path.join(root, f));
-  });
-  if (missing.length) throw new Error('missing files: ' + missing.join(', '));
+function run(cmd, args) {
+  const result = spawnSync(cmd, args, { cwd: root, stdio: 'inherit' });
+  if (result.status !== 0) process.exit(result.status || 1);
+}
 
-  const tests = spawnSync('node', ['test.js'], { cwd: root, stdio: 'inherit' });
-  if (tests.status !== 0) process.exit(tests.status || 1);
-  const domTests = spawnSync('node', ['test-dom.js'], { cwd: root, stdio: 'inherit' });
-  if (domTests.status !== 0) process.exit(domTests.status || 1);
+function packZip(verStr) {
+  run('npm', ['test']);
+  run('npx', ['tsc', '--noEmit']);
+  run('npm', ['run', 'build']);
 
   const dist = path.join(root, 'dist');
-  fs.mkdirSync(dist, { recursive: true });
+  const missing = EXT_FILES.filter(function (f) {
+    return !fs.existsSync(path.join(dist, f));
+  });
+  if (missing.length) throw new Error('missing built files: ' + missing.join(', '));
+
   const zipName = 'islop-' + verStr + '.zip';
   const zipPath = path.join(dist, zipName);
   if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
 
-  const zipped = spawnSync('zip', ['-q', '-X', zipPath].concat(FILES), {
-    cwd: root,
+  const zipped = spawnSync('zip', ['-q', '-X', zipPath].concat(EXT_FILES), {
+    cwd: dist,
     stdio: 'inherit'
   });
   if (zipped.status !== 0) process.exit(zipped.status || 1);
@@ -86,7 +82,7 @@ function packZip(verStr) {
   if (names.indexOf('manifest.json') === -1) {
     throw new Error('zip is missing manifest.json');
   }
-  if (/\btest\.js\b/.test(names) || names.indexOf('.git/') !== -1) {
+  if (/\btest\b/.test(names) || names.indexOf('.git/') !== -1 || names.indexOf('src/') !== -1) {
     throw new Error('zip contains files that should not ship');
   }
 

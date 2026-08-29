@@ -1,11 +1,14 @@
-'use strict';
+import * as engine from '../src/engine';
+import en from '../src/packs/en';
+import fr from '../src/packs/fr';
+import es from '../src/packs/es';
+import { SLOP_PACK_IDS, detectPack } from '../src/packs/registry';
 
-const engine = require('./engine.js');
 
 let passed = 0;
 let failed = 0;
 
-function assert(cond, msg) {
+function assert(cond: unknown, msg: string): void {
   if (cond) {
     passed += 1;
     console.log('  ok  ' + msg);
@@ -15,14 +18,14 @@ function assert(cond, msg) {
   }
 }
 
-function padToWords(text, n) {
+function padToWords(text: string, n: number): string {
   const have = engine.countWords(text);
   if (have >= n) return text;
   const extra = Array.from({ length: n - have }, (_, i) => 'padding' + i);
   return text + ' ' + extra.join(' ');
 }
 
-function insertDashes(wordCount, dashCount) {
+function insertDashes(wordCount: number, dashCount: number): string {
   const words = Array.from({ length: wordCount }, (_, i) => 'token' + i);
   const step = Math.max(1, Math.floor(wordCount / (dashCount + 1)));
   let inserted = 0;
@@ -52,8 +55,7 @@ console.log('isSlop engine tests\n');
 
 console.log('0. English pack');
 {
-  const pack = require('./packs/en.js');
-  const { SLOP_PACK_IDS } = require('./packs/registry.js');
+  const pack = en;
   assert(pack.id === 'en', 'pack id is en');
   assert(Array.isArray(pack.rules) && pack.rules.length > 0, 'pack has rules (got ' + pack.rules.length + ')');
   assert(SLOP_PACK_IDS.indexOf('en') !== -1, 'registry lists en');
@@ -103,7 +105,7 @@ console.log('3. Delve vs dove');
 console.log('4. Overlap merge');
 {
   const text = "It isn't just robust. It's transformative.";
-  const raw = engine.findMatches(text, require('./packs/en.js').rules);
+  const raw = engine.findMatches(text, en.rules);
   const merged = engine.mergeOverlaps(raw);
   const spans = merged.map((m) => [m.start, m.end]);
   let overlap = false;
@@ -150,7 +152,7 @@ console.log('6. Structural antithesis');
 // 7. Simon Willison catalog samples
 console.log('7. Simon Willison cliché samples');
 {
-  function ids(text) {
+  function ids(text: string) {
     return engine.scanText(text).matches.map((m) => m.rule.id);
   }
   assert(ids("Don't call it a comeback. Call it a return.").includes('dont-verb-it'), 'dont-verb-it');
@@ -166,7 +168,7 @@ console.log('7. Simon Willison cliché samples');
 // 8. Search Engine Watch examples
 console.log('8. Search Engine Watch examples');
 {
-  function ids(text) {
+  function ids(text: string) {
     return engine.scanText(text).matches.map((m) => m.rule.id);
   }
   assert(ids("Let's delve into the fascinating world of SEO.").some((id) => id === 'lets-dive' || id === 'landscape-opener'), 'fascinating world / let’s delve');
@@ -179,7 +181,7 @@ console.log('8. Search Engine Watch examples');
 // 9. no-ai-slop skill phrase gaps
 console.log('9. no-ai-slop skill phrases');
 {
-  function ids(text) {
+  function ids(text: string) {
     return engine.scanText(text).matches.map((m) => m.rule.id);
   }
   assert(ids("Here's what I mean: the lock is the bug.").includes('faux-insight'), "here's what I mean");
@@ -199,9 +201,7 @@ console.log('9. no-ai-slop skill phrases');
 // 10. French pack
 console.log('10. French pack');
 {
-  const fr = require('./packs/fr.js');
-  const { SLOP_PACK_IDS } = require('./packs/registry.js');
-  function ids(text) {
+  function ids(text: string) {
     return engine.scanText(text, fr).matches.map((m) => m.rule.id);
   }
   const FR_SLOP = padToWords(
@@ -233,7 +233,6 @@ console.log('10. French pack');
   assert(ids('Les experts estiment que c’est incontournable.').includes('weasel-attribution'), 'les experts estiment');
   assert(ids('Faire du sens n’aide personne.').includes('anglicisms'), 'faire du sens');
   assert(!ids('Le lock était pris, mais les logs disaient le contraire.').includes('connectors'), 'mid-sentence mais is not a connector tell');
-  const { detectPack } = require('./packs/registry.js');
   assert(detectPack('fr', '').id === 'fr', 'html lang=fr → French pack');
   assert(detectPack('fr-CA', '').id === 'fr', 'html lang=fr-CA → French pack');
   assert(detectPack('en-US', '').id === 'en', 'html lang=en-US → English pack');
@@ -245,9 +244,7 @@ console.log('10. French pack');
 // 11. Spanish pack (unverified)
 console.log('11. Spanish pack (unverified)');
 {
-  const es = require('./packs/es.js');
-  const { SLOP_PACK_IDS, detectPack } = require('./packs/registry.js');
-  function ids(text) {
+  function ids(text: string) {
     return engine.scanText(text, es).matches.map((m) => m.rule.id);
   }
   const ES_SLOP = padToWords(
@@ -299,7 +296,6 @@ console.log('12. Engine guards');
   }]);
   assert(Date.now() - t0 < 200, 'non-global re does not hang');
   assert(hits.length === 2, 'non-global re is treated as global (got ' + hits.length + ')');
-  const { detectPack } = require('./packs/registry.js');
   const noise = 'constructor toString valueOf hasOwnProperty __proto__ ';
   assert(detectPack('', noise.repeat(50)).id === 'en', 'stopword map is not Object.prototype');
 }

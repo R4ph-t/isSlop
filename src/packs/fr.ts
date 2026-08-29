@@ -12,12 +12,9 @@
 //   https://github.com/ferr079/humanizer-fr
 //   https://github.com/alxbd/boileau
 
-(function (root) {
-  const F = root.SlopFinders || require('../finders.js');
-  const register = root.registerPack || require('./registry.js').registerPack;
-  const makeChainFinder = F.makeChainFinder;
-  const makeEchoFinder = F.makeEchoFinder;
-  const makeAnaphoraFinder = F.makeAnaphoraFinder;
+import { makeChainFinder, makeEchoFinder, makeAnaphoraFinder } from '../finders';
+import { registerPack } from './registry';
+import type { Pack } from '../types';
 
   const AP = String.raw`['\u2019]`;
   const FR_WORD = /[\p{L}\p{N}'’-]+/gu;
@@ -26,7 +23,7 @@
 
   const ANAPHORA_SKIP = /^(?:le|la|les|un|une|des|je|tu|il|elle|on|nous|vous|ils|elles|ce|cet|cette|ces|et|ou|mais|donc|or|ni|car|de|du|à|au|aux|en|y|que|qui|si|ne|pas|dans|sur|pour|par|avec|sans|son|sa|ses|mon|ma|mes|c|d|l|n|s|qu)$/i;
 
-  function frRe(inner, flags) {
+  function frRe(inner: string, flags?: string) {
     return new RegExp(String.raw`(?<![\p{L}\p{N}_])(?:${inner})(?![\p{L}\p{N}_])`, flags || 'giu');
   }
 
@@ -314,7 +311,7 @@
     }
   ];
 
-  const pack = {
+const pack: Pack = {
     id: 'fr',
     name: 'French',
     verified: true,
@@ -340,6 +337,5 @@
     }
   };
 
-  register(pack);
-  if (typeof module !== 'undefined' && module.exports) module.exports = pack;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+registerPack(pack);
+export default pack;

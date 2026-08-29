@@ -6,11 +6,20 @@ Toolbar and panel icons are from [Lucide](https://lucide.dev) (`highlighter`, `e
 
 ## Load unpacked
 
+Sources are TypeScript in `src/`. Chrome loads the built files in `dist/`.
+
+```
+npm install
+npm run build
+```
+
 1. Open `chrome://extensions`
 2. Turn on **Developer mode**
-3. Click **Load unpacked** and select this folder
+3. Click **Load unpacked** and select the `dist/` folder
 4. Open any http(s) page and click the toolbar icon. A panel opens on the page and the tab is scanned. Compose boxes and other `contenteditable` fields are left alone.
 5. Hover a highlight for the rule name and why it fired. **Hide highlights** removes marks. **Rescan** if the page changed.
+
+After changing source, run `npm run build` again, then **Reload** the extension.
 
 Chrome's own pages (`chrome://…`, the Web Store) cannot be scripted.
 
@@ -43,17 +52,17 @@ A hit is a tell. Humans write some of them; density is the product. The Spanish 
 
 ## How to add a pack
 
-A pack is one language. English is not special. It is `packs/en.js`. French is `packs/fr.js`. Spanish is `packs/es.js` (**unverified**). The engine never names a language; scan picks a pack from `document.documentElement.lang`, then a stopword vote on the page text if `lang` is missing.
+A pack is one language. English is not special. It is `src/packs/en.ts`. French is `src/packs/fr.ts`. Spanish is `src/packs/es.ts` (**unverified**). The engine never names a language; scan picks a pack from `document.documentElement.lang`, then a stopword vote on the page text if `lang` is missing.
 
-The only list a contributor edits besides the new file is `SLOP_PACK_IDS` in `packs/registry.js`. Popup inject and tests load from that array. Do not edit `popup.js` or `engine.js` to add a language.
+To add a language, edit three places: the new pack file, `SLOP_PACK_IDS` in `src/packs/registry.ts`, and an `import './<id>'` in `src/packs/index.ts` so the content bundle includes it. Do not edit `src/popup.ts` or `src/engine.ts` to add a language.
 
 ### Steps
 
-1. Copy `packs/fr.js` (better starting point than English if the language has accents) to `packs/<id>.js`. `<id>` is the ISO 639-1 code: `es`, `de`, `pt`.
-2. Keep the IIFE wrapper (`SlopFinders` / `registerPack` / `module.exports`). Change `id`, `name`, `locales`, and `stopwords`.
+1. Copy `src/packs/fr.ts` (better starting point than English if the language has accents) to `src/packs/<id>.ts`. `<id>` is the ISO 639-1 code: `de`, `pt`.
+2. Keep the `registerPack` / `export default pack` module shape. Change `id`, `name`, `locales`, and `stopwords`.
 3. Write **native** `rules`. Do not translate the English catalog. LLM tells are language-specific (`delve` ≠ `plonger`; Spanish uses *cabe destacar*, not *it's worth noting*).
-4. Add `'<id>'` to `SLOP_PACK_IDS` in `packs/registry.js`.
-5. Add fixtures in `test.js`: a slop paragraph that scores high, a human paragraph that stays **under 8**, plus `detectPack('<id>', '')` and a stopword-vote case.
+4. Add `'<id>'` to `SLOP_PACK_IDS` in `src/packs/registry.ts`, and `import './<id>'` in `src/packs/index.ts`.
+5. Add fixtures in `test/engine.ts`: a slop paragraph that scores high, a human paragraph that stays **under 8**, plus `detectPack('<id>', '')` and a stopword-vote case.
 6. Run `npm test`. Existing English, French, and DOM editor-skip tests must still pass.
 
 Set `verified: true` only when a native speaker has scanned real pages in that language and the human fixture still scores under 8. Leave `verified: false` (and say so in the file header) if the catalog is compiled from published lists but not attested yet. Unverified packs still run on matching `lang`; the popup labels them so hits are treated as drafts.
@@ -96,9 +105,9 @@ Each rule is `{ id, name, tier, category, re|find, why }`. `why` is the tooltip.
 }
 ```
 
-`\b` is ASCII-only in JavaScript. For accents, elisions, or non-Latin letters, use unicode boundaries (`u` flag) as in `packs/fr.js` (`(?<![\p{L}\p{N}_])…(?![\p{L}\p{N}_])`), not `\b`.
+`\b` is ASCII-only in JavaScript. For accents, elisions, or non-Latin letters, use unicode boundaries (`u` flag) as in `src/packs/fr.ts` (`(?<![\p{L}\p{N}_])…(?![\p{L}\p{N}_])`), not `\b`.
 
-Structural helpers live in `finders.js`. Pass language-specific separators and skip lists; do not copy the finder guts into the pack:
+Structural helpers live in `src/finders.ts`. Pass language-specific separators and skip lists; do not copy the finder guts into the pack:
 
 - `makeChainFinder(head, headTest, minItems, chainSep)` — `et`/`ou`, `y`/`o`, `ni`/`ningún`
 - `makeEchoFinder(wordRe)` — pass `/[\p{L}\p{N}'’-]+/gu` when words are not ASCII
@@ -106,19 +115,19 @@ Structural helpers live in `finders.js`. Pass language-specific separators and s
 
 When in doubt, demote a rule one tier. False positives are the product killer. A connector that humans use in the middle of a sentence should not fire just because it appears once.
 
-To add a rule to an existing pack, append an object to `rules` in that pack file and extend `test.js`. Same `node test.js` bar.
+To add a rule to an existing pack, append an object to `rules` in that pack file and extend `test/engine.ts`. Same `npm test` bar.
 
 ## Tests
 
 ```
 npm test          # engine catalogs + jsdom wrapRange / editor skips
+npm run typecheck
 npm run lint
-npm run check     # both
+npm run build     # emit dist/ for Load unpacked
+npm run check     # test + types + lint + build
 ```
 
-`node test.js` is the zero-dependency catalog suite. `test-dom.js` needs `npm install` (jsdom).
-
-Packs, `finders.js`, `engine.js`, and `scan-dom.js` are dual-environment (browser global + Node) so match/merge/score and wrapRange run in tests and in the content script.
+`tsx` runs `test/engine.ts` and `test/dom.ts` against `src/`. `tsc --noEmit` is the typecheck. esbuild bundles `src/` into `dist/` as classic scripts (Chrome `executeScript({ files })` is not ESM).
 
 ## Release
 
