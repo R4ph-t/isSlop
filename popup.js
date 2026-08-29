@@ -270,9 +270,9 @@ if (new URLSearchParams(location.search).has('preview')) {
     tiers: { 1: 3, 2: 3, 3: 4 },
     findings: [
       { id: 'p1', name: 'Closing platitude', snippet: 'At the end of the day, the possibilities are truly endless.', tier: 3 },
-      { id: 'p2', name: 'Template opener', snippet: "In today's rapidly evolving digital landscape", tier: 3 },
-      { id: 'p3', name: 'Signature vocabulary', snippet: "Let's delve into the rich tapestry of…", tier: 3 },
-      { id: 'p4', name: 'Hollow tribute', snippet: 'a testament to the power of…', tier: 3 }
+      { id: 'p2', name: 'Template opener', snippet: "In today's rapidly evolving digital landscape", tier: 2 },
+      { id: 'p3', name: 'Signature vocabulary', snippet: "Let's delve into the rich tapestry of…", tier: 2 },
+      { id: 'p4', name: 'Hollow tribute', snippet: 'a testament to the power of…', tier: 1 }
     ]
   }, 4100);
 } else {

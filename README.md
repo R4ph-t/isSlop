@@ -2,7 +2,7 @@
 
 Chrome extension that highlights likely AI-generated "slop" **inline on the page**, with a tooltip naming the rule that fired. Nothing leaves the browser. No network, accounts, tracking, or ML APIs.
 
-Toolbar and popup icons are from [Lucide](https://lucide.dev) (`scan-search`, `eraser`; ISC License).
+Toolbar and popup icons are from [Lucide](https://lucide.dev) (`highlighter`, `eraser`; ISC License).
 
 ## Load unpacked
 
