@@ -113,39 +113,48 @@ To add a rule to an existing pack, append an object to `rules` in that pack file
 ```
 npm test          # engine catalogs + jsdom wrapRange / editor skips
 npm run lint
-npm run typecheck
-npm run check     # all three
+npm run check     # both
 ```
 
 `node test.js` is the zero-dependency catalog suite. `test-dom.js` needs `npm install` (jsdom).
 
 Packs, `finders.js`, `engine.js`, and `scan-dom.js` are dual-environment (browser global + Node) so match/merge/score and wrapRange run in tests and in the content script.
 
-## Release (Chrome Web Store)
+## Release
 
 Version lives in one place: `manifest.json` `"version"`. Chrome only accepts `x.y.z` integers (no `-beta`). The panel reads it via `chrome.runtime.getManifest()`.
+
+### 1. Bump and zip locally
 
 ```
 node scripts/release.js pack              # zip current version → dist/islop-x.y.z.zip
 node scripts/release.js patch|minor|major # bump, retest, zip
 ```
 
-That zip has `manifest.json` at the archive root (required). It excludes `.git`, tests, SVGs, and this README.
+The zip has `manifest.json` at the archive root (required). It excludes `.git`, tests, SVGs, and this README.
 
-Then:
+### 2. Commit, tag, push
+
+The tag must match the manifest (`v0.1.2` ↔ `"version": "0.1.2"`).
+
+```
+git add manifest.json
+git commit -m "Release v0.1.2"
+git tag v0.1.2
+git push && git push --tags
+```
+
+Pushing the tag runs `.github/workflows/release.yml`: it fails if the tag and manifest disagree, lints, packs the zip, and creates a GitHub Release with `islop-x.y.z.zip` attached.
+
+### 3. Chrome Web Store (manual)
+
+Download that zip from the GitHub Release (or use the local `dist/` file).
 
 1. One-time: [Chrome Web Store developer account](https://chrome.google.com/webstore/devconsole) ($5).
-2. **New item** (or **Package → Upload new package** for an update). Upload `dist/islop-x.y.z.zip`. Each upload must be a higher version than the last.
+2. **New item** (or **Package → Upload new package**). Upload `islop-x.y.z.zip`. Each upload must be a higher version than the last.
 3. Store listing: name, short + detailed description, then the images in `store/`:
    - Screenshots (1280×800 JPEG): `screenshot-1-popup.jpg`, `screenshot-2-tooltip.jpg`, `screenshot-3-dark.jpg`
    - Small promo tile (440×280): `promo-small.jpg`
    - 128px icon: `icons/icon128.png` (already in the zip)
 4. Privacy tab: single purpose, data use (nothing leaves the browser), justify `activeTab` and `scripting`, remote code = No. Host [`PRIVACY.md`](PRIVACY.md) at a public URL.
 5. Submit for review.
-
-After a bump, commit `manifest.json`, then tag so git matches the store:
-
-```
-git tag v1.0.1
-git push && git push --tags
-```
