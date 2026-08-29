@@ -9,6 +9,11 @@ let lastSummary = null;
 const hiddenTiers = { 1: false, 2: false, 3: false };
 const isPreview = new URLSearchParams(location.search).has('preview');
 
+if (!isPreview) {
+  document.documentElement.dataset.theme =
+    matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 function setStatus(text) {
   if (!text) {
     statusEl.hidden = true;
@@ -47,11 +52,21 @@ async function inject(tabId) {
   await chrome.scripting.executeScript({
     target: { tabId },
     files: ['finders.js', 'packs/registry.js']
-      .concat((typeof SLOP_PACK_IDS !== 'undefined' ? SLOP_PACK_IDS : ['en']).map(function (id) {
+      .concat((typeof globalThis.SLOP_PACK_IDS !== 'undefined' ? globalThis.SLOP_PACK_IDS : ['en']).map(function (id) {
         return 'packs/' + id + '.js';
       }))
-      .concat(['engine.js', 'content.js'])
+      .concat(['engine.js', 'scan-dom.js', 'content.js'])
   });
+}
+
+async function ensureInjected(tabId) {
+  try {
+    const pong = await chrome.tabs.sendMessage(tabId, { type: 'SLOP_PING' });
+    if (pong && pong.ok) return;
+  } catch (err) {
+    /* not injected yet */
+  }
+  await inject(tabId);
 }
 
 function displayLabel(label) {
@@ -230,7 +245,7 @@ async function runScan() {
   const t0 = performance.now();
   try {
     const tab = await activeTab();
-    await inject(tab.id);
+    await ensureInjected(tab.id);
     const summary = await chrome.tabs.sendMessage(tab.id, {
       type: 'SLOP_SCAN',
       scope: scanScope
@@ -252,7 +267,7 @@ async function hideHighlights() {
   setBusy(true);
   try {
     const tab = await activeTab();
-    await inject(tab.id);
+    await ensureInjected(tab.id);
     await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_CLEAR' });
     statusEl.classList.remove('is-error');
     setScanned(false);
@@ -320,7 +335,7 @@ document.getElementById('findings').addEventListener('click', async function (e)
   if (!btn || !btn.dataset.id) return;
   try {
     const tab = await activeTab();
-    await inject(tab.id);
+    await ensureInjected(tab.id);
     await chrome.tabs.sendMessage(tab.id, { type: 'SLOP_JUMP', id: btn.dataset.id });
   } catch (err) {
     /* page gone */

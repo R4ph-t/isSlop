@@ -23,8 +23,10 @@ function ensurePacksLoaded() {
 function currentPack(pack) {
   if (pack) return pack;
   ensurePacksLoaded();
-  if (typeof SlopPacks !== 'undefined' && typeof SlopPacks.current === 'function') {
-    return SlopPacks.current();
+  if (typeof globalThis !== 'undefined'
+    && globalThis.SlopPacks
+    && typeof globalThis.SlopPacks.current === 'function') {
+    return globalThis.SlopPacks.current();
   }
   return require('./packs/registry.js').activePack();
 }
@@ -38,6 +40,30 @@ function countWords(text) {
   return parts.length;
 }
 
+function eachGlobalMatch(re, text, fn) {
+  if (!re || text == null) return;
+  let g = re;
+  if (!re.global) {
+    try {
+      g = new RegExp(re.source, re.flags + 'g');
+    } catch (err) {
+      return;
+    }
+  }
+  g.lastIndex = 0;
+  const limit = String(text).length + 1;
+  let steps = 0;
+  let m;
+  while ((m = g.exec(text)) !== null) {
+    if (++steps > limit) break;
+    if (!m[0]) {
+      g.lastIndex += 1;
+      continue;
+    }
+    fn(m);
+  }
+}
+
 function findMatches(text, rules) {
   const matches = [];
   const list = rules || currentPack().rules;
@@ -49,17 +75,10 @@ function findMatches(text, rules) {
       }
       continue;
     }
-    const re = rule.re;
-    if (!re) continue;
-    re.lastIndex = 0;
-    let m;
-    while ((m = re.exec(text)) !== null) {
-      if (!m[0]) {
-        re.lastIndex += 1;
-        continue;
-      }
+    if (!rule.re) continue;
+    eachGlobalMatch(rule.re, text, function (m) {
       matches.push({ start: m.index, end: m.index + m[0].length, rule });
-    }
+    });
   }
   return matches;
 }
@@ -87,14 +106,10 @@ function mergeOverlaps(matches) {
 function countEmDashes(text, pack) {
   const cfg = currentPack(pack) && currentPack(pack).emDash;
   if (!cfg || !cfg.re) return 0;
-  const re = cfg.re;
-  re.lastIndex = 0;
   let n = 0;
-  let m;
-  while ((m = re.exec(text)) !== null) {
+  eachGlobalMatch(cfg.re, text, function () {
     n += 1;
-    if (!m[0]) re.lastIndex += 1;
-  }
+  });
   return n;
 }
 
@@ -109,20 +124,13 @@ function findEmDashMatches(text, pack) {
   const cfg = currentPack(pack) && currentPack(pack).emDash;
   if (!cfg || !cfg.re) return [];
   const matches = [];
-  const re = cfg.re;
-  re.lastIndex = 0;
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    if (!m[0]) {
-      re.lastIndex += 1;
-      continue;
-    }
+  eachGlobalMatch(cfg.re, text, function (m) {
     matches.push({
       start: m.index,
       end: m.index + m[0].length,
       rule: cfg.rule
     });
-  }
+  });
   return matches;
 }
 
@@ -181,6 +189,7 @@ const SlopEngine = {
   SCORE_MULTIPLIER,
   TIER_WEIGHT,
   countWords,
+  eachGlobalMatch,
   findMatches,
   mergeOverlaps,
   countEmDashes,

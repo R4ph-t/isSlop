@@ -3,74 +3,29 @@
     window.__slopspotterTeardown();
   }
 
-  const SKIP_TAGS = new Set([
-    'SCRIPT', 'STYLE', 'NOSCRIPT', 'SVG', 'TEXTAREA', 'INPUT', 'SELECT', 'CODE', 'PRE',
-    'META', 'TEMPLATE', 'TITLE', 'LINK', 'HEAD', 'SLOT', 'SOURCE', 'TRACK'
-  ]);
-  const CHROME_TAGS = new Set(['NAV', 'FOOTER', 'ASIDE', 'MENU']);
-  const CHROME_ROLES = new Set([
-    'navigation', 'complementary', 'contentinfo', 'banner', 'search',
-    'dialog', 'alertdialog', 'menu', 'menubar'
-  ]);
-  const CHROME_ATTR = /(?:^|[\s_-])(?:nav(?:bar|igation)?|sidebar|footer|cookie(?:s|banner|notice|consent)?|consent|onetrust|gdpr|newsletter|subscribe|mailchimp|comments?|disqus|related[-_]posts|social[-_]share|share[-_]buttons|advert(?:isement|orial)?|adsense|ad[-_]slot|paywall)(?:[\s_-]|$)/i;
-  const MARK_CLASS = 'slopspotter-mark';
-  const TIP_ID = 'slopspotter-tip';
-  const FLASH_HOST_ID = 'slopspotter-flash-host';
+  const Scan = window.SlopScanDom;
+  if (!Scan) return;
+
+  const MARK_CLASS = Scan.MARK_CLASS;
+  const MARK_ID_RE = Scan.MARK_ID_RE;
   const DARK_CLASS = 'slopspotter-on-dark';
-  const MIN_TEXT_LEN = 20;
+  const MAX_SCAN_CHARS = 200000;
+  const MAX_SCAN_MS = 450;
   const TIER_NAME = { 3: 'HEAVY', 2: 'MEDIUM', 1: 'LIGHT' };
 
-  let markSeq = 0;
   let pinnedMark = null;
   let flashMark = null;
   let flashTimer = 0;
+  let unrenderedCache = Scan.createCache();
+  let uiHost = null;
+  let uiShadow = null;
+  let tipEl = null;
+  let flashBox = null;
   const bound = [];
 
   function listen(target, type, fn, opts) {
     target.addEventListener(type, fn, opts);
     bound.push([target, type, fn, opts]);
-  }
-
-  function skipNode(node) {
-    if (node.nodeType !== Node.ELEMENT_NODE) return false;
-    if (SKIP_TAGS.has(node.nodeName.toUpperCase())) return true;
-    if (node.classList && node.classList.contains(MARK_CLASS)) return true;
-    return false;
-  }
-
-  // TreeWalker sees display:none, <meta> in body, aria-hidden SEO blocks, etc.
-  // Those are not on the page, so they must not become findings.
-  function isUnrendered(el) {
-    while (el && el.nodeType === 1) {
-      if (skipNode(el)) return true;
-      if (el.hidden) return true;
-      if (el.getAttribute('aria-hidden') === 'true') return true;
-      const cs = getComputedStyle(el);
-      if (cs.display === 'none' || cs.visibility === 'hidden') return true;
-      if (cs.contentVisibility === 'hidden') return true;
-      if (cs.opacity === '0') return true;
-      if (!parseFloat(cs.fontSize)) return true;
-      el = el.parentElement;
-    }
-    return false;
-  }
-
-  function attrBlob(el) {
-    const cls = typeof el.className === 'string' ? el.className : '';
-    return ((el.id || '') + ' ' + cls).toLowerCase();
-  }
-
-  function isPageChrome(el) {
-    while (el && el.nodeType === 1 && el !== document.body && el !== document.documentElement) {
-      if (CHROME_TAGS.has(el.nodeName)) return true;
-      if (el.nodeName === 'HEADER' && !el.closest('article')) return true;
-      const role = (el.getAttribute('role') || '').toLowerCase();
-      if (CHROME_ROLES.has(role)) return true;
-      if (el.getAttribute('aria-modal') === 'true') return true;
-      if (CHROME_ATTR.test(attrBlob(el))) return true;
-      el = el.parentElement;
-    }
-    return false;
   }
 
   function countVisibleWords(el) {
@@ -121,24 +76,6 @@
     if (main && countVisibleWords(main) >= minWords) return { root: main, kind: 'main' };
 
     return { root: document.body, kind: 'body' };
-  }
-
-  function collectTextNodes(root, stripChrome) {
-    const nodes = [];
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode: function (node) {
-        const parent = node.parentElement;
-        if (!parent) return NodeFilter.FILTER_REJECT;
-        if (isUnrendered(parent)) return NodeFilter.FILTER_REJECT;
-        if (stripChrome && isPageChrome(parent)) return NodeFilter.FILTER_REJECT;
-        const text = node.nodeValue || '';
-        if (text.length < MIN_TEXT_LEN) return NodeFilter.FILTER_REJECT;
-        return NodeFilter.FILTER_ACCEPT;
-      }
-    });
-    let n;
-    while ((n = walker.nextNode())) nodes.push(n);
-    return nodes;
   }
 
   /* ── page luminance: decides multiply vs screen ink ─────────────── */
@@ -246,46 +183,6 @@
 
   /* ── marking ───────────────────────────────────────────────────────── */
 
-  // deterministic per-mark jitter so a stroke never looks stamped, but also
-  // never changes between renders of the same page
-  function jitter(seed) {
-    const x = Math.sin(seed * 127.1) * 43758.5453;
-    return x - Math.floor(x);
-  }
-
-  function wrapRange(textNode, start, end, rule) {
-    const text = textNode.nodeValue;
-    if (start < 0 || end > text.length || start >= end) return textNode;
-
-    const after = textNode.splitText(end);
-    const matchNode = start > 0 ? textNode.splitText(start) : textNode;
-
-    const seed = ++markSeq;
-    const mark = document.createElement('mark');
-    mark.id = 'slopspotter-m-' + seed;
-    mark.className = MARK_CLASS + ' slopspotter-t' + rule.tier;
-    mark.style.setProperty('--ss-j', (0.86 + jitter(seed) * 0.14).toFixed(3));
-    mark.style.setProperty('--ss-ang', (97 + jitter(seed + 3) * 4).toFixed(1) + 'deg');
-    mark.style.setProperty('--ss-r', (0.16 + jitter(seed + 7) * 0.1).toFixed(3) + 'em');
-    mark.style.borderRadius = 'var(--ss-r)';
-    mark.setAttribute('data-slop', rule.name + ': ' + rule.why);
-    mark.setAttribute('data-slop-id', rule.id || '');
-    mark.setAttribute('data-slop-name', rule.name);
-    mark.setAttribute('data-slop-why', rule.why);
-    mark.setAttribute('data-slop-tier', String(rule.tier));
-    if (rule.try) mark.setAttribute('data-slop-try', rule.try);
-    matchNode.parentNode.insertBefore(mark, matchNode);
-    mark.appendChild(matchNode);
-    return after;
-  }
-
-  function applyMatches(textNode, matches) {
-    const sorted = matches.slice().sort((a, b) => b.start - a.start);
-    for (const m of sorted) {
-      wrapRange(textNode, m.start, m.end, m.rule);
-    }
-  }
-
   function usableRects(el) {
     const out = [];
     const rects = el.getClientRects();
@@ -313,54 +210,88 @@
     return rects[0];
   }
 
-  /* ── tooltip ───────────────────────────────────────────────────────── */
+  /* ── tooltip / flash: closed shadow so the page cannot clobber ids ── */
+
+  function dropUi() {
+    if (uiHost && uiHost.parentNode) uiHost.parentNode.removeChild(uiHost);
+    uiHost = null;
+    uiShadow = null;
+    tipEl = null;
+    flashBox = null;
+  }
+
+  function ensureUi() {
+    if (uiHost && uiHost.isConnected && uiShadow && tipEl && flashBox) return;
+    dropUi();
+    document.querySelectorAll('[data-isslop="ui"]').forEach(function (n) {
+      n.parentNode.removeChild(n);
+    });
+    uiHost = document.createElement('div');
+    uiHost.setAttribute('data-isslop', 'ui');
+    uiHost.style.cssText = [
+      'position: fixed',
+      'top: 0',
+      'left: 0',
+      'width: 0',
+      'height: 0',
+      'overflow: visible',
+      'pointer-events: none',
+      'z-index: 2147483647'
+    ].join(';');
+    uiShadow = uiHost.attachShadow({ mode: 'closed' });
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = chrome.runtime.getURL('highlight.css');
+    uiShadow.appendChild(link);
+
+    const tip = document.createElement('div');
+    tip.className = 'slopspotter-tip';
+    tip.setAttribute('role', 'tooltip');
+    tip.hidden = true;
+
+    const head = document.createElement('div');
+    head.className = 'slopspotter-tip-head';
+    const name = document.createElement('span');
+    name.className = 'slopspotter-tip-name';
+    const level = document.createElement('span');
+    level.className = 'slopspotter-tip-level';
+    head.append(name, level);
+
+    const why = document.createElement('div');
+    why.className = 'slopspotter-tip-why';
+
+    const instead = document.createElement('div');
+    instead.className = 'slopspotter-tip-instead';
+    instead.hidden = true;
+    const insteadKicker = document.createElement('div');
+    insteadKicker.className = 'slopspotter-tip-kicker';
+    insteadKicker.textContent = 'TRY INSTEAD';
+    const insteadText = document.createElement('div');
+    insteadText.className = 'slopspotter-tip-try';
+    instead.append(insteadKicker, insteadText);
+
+    const foot = document.createElement('div');
+    foot.className = 'slopspotter-tip-foot';
+    const words = document.createElement('span');
+    words.className = 'slopspotter-tip-meta';
+    const times = document.createElement('span');
+    times.className = 'slopspotter-tip-meta';
+    foot.append(words, times);
+
+    tip.append(head, why, instead, foot);
+    uiShadow.appendChild(tip);
+
+    flashBox = document.createElement('div');
+    flashBox.setAttribute('aria-hidden', 'true');
+    uiShadow.appendChild(flashBox);
+
+    document.documentElement.appendChild(uiHost);
+    tipEl = tip;
+  }
 
   function getTip() {
-    let tip = document.getElementById(TIP_ID);
-    if (tip && !tip.querySelector('.slopspotter-tip-foot')) {
-      tip.parentNode.removeChild(tip);
-      tip = null;
-    }
-    if (!tip) {
-      tip = document.createElement('div');
-      tip.id = TIP_ID;
-      tip.className = 'slopspotter-tip';
-      tip.setAttribute('role', 'tooltip');
-      tip.hidden = true;
-
-      const head = document.createElement('div');
-      head.className = 'slopspotter-tip-head';
-      const name = document.createElement('span');
-      name.className = 'slopspotter-tip-name';
-      const level = document.createElement('span');
-      level.className = 'slopspotter-tip-level';
-      head.append(name, level);
-
-      const why = document.createElement('div');
-      why.className = 'slopspotter-tip-why';
-
-      const instead = document.createElement('div');
-      instead.className = 'slopspotter-tip-instead';
-      instead.hidden = true;
-      const insteadKicker = document.createElement('div');
-      insteadKicker.className = 'slopspotter-tip-kicker';
-      insteadKicker.textContent = 'TRY INSTEAD';
-      const insteadText = document.createElement('div');
-      insteadText.className = 'slopspotter-tip-try';
-      instead.append(insteadKicker, insteadText);
-
-      const foot = document.createElement('div');
-      foot.className = 'slopspotter-tip-foot';
-      const words = document.createElement('span');
-      words.className = 'slopspotter-tip-meta';
-      const times = document.createElement('span');
-      times.className = 'slopspotter-tip-meta';
-      foot.append(words, times);
-
-      tip.append(head, why, instead, foot);
-      document.documentElement.appendChild(tip);
-    }
-    return tip;
+    ensureUi();
+    return tipEl;
   }
 
   function fillTip(tip, mark) {
@@ -385,7 +316,10 @@
     const ruleId = mark.getAttribute('data-slop-id');
     let times = 0;
     if (ruleId) {
-      times = document.querySelectorAll('.' + MARK_CLASS + '[data-slop-id="' + ruleId + '"]').length;
+      const marks = document.getElementsByClassName(MARK_CLASS);
+      for (let i = 0; i < marks.length; i++) {
+        if (marks[i].getAttribute('data-slop-id') === ruleId) times += 1;
+      }
     }
     if (metas[0]) {
       metas[0].textContent = marked === 1 ? '1 flagged word' : marked + ' flagged words';
@@ -415,9 +349,8 @@
 
   function hideTip() {
     if (pinnedMark) return;
-    const tip = document.getElementById(TIP_ID);
-    if (!tip) return;
-    tip.hidden = true;
+    if (!tipEl) return;
+    tipEl.hidden = true;
   }
 
   function showTipFor(mark) {
@@ -446,10 +379,9 @@
 
   listen(document, 'pointermove', function (e) {
     const mark = markFromEvent(e);
-    const tip = document.getElementById(TIP_ID);
-    if (!mark || !tip || tip.hidden) return;
+    if (!mark || !tipEl || tipEl.hidden) return;
     const rect = pickRect(mark, e.clientX, e.clientY);
-    if (rect) placeTip(tip, rect);
+    if (rect) placeTip(tipEl, rect);
   });
 
   listen(document, 'pointerout', function (e) {
@@ -476,14 +408,13 @@
   });
 
   function clearHighlights() {
+    pinnedMark = null;
     clearFlash();
-    hideTip();
-    const tip = document.getElementById(TIP_ID);
-    if (tip && tip.parentNode) tip.parentNode.removeChild(tip);
+    dropUi();
     document.documentElement.classList.remove(
       DARK_CLASS, 'slopspotter-hide-t1', 'slopspotter-hide-t2', 'slopspotter-hide-t3'
     );
-    markSeq = 0;
+    Scan.reset();
     const marks = document.querySelectorAll('.' + MARK_CLASS);
     marks.forEach(function (mark) {
       const parent = mark.parentNode;
@@ -515,8 +446,7 @@
       window.clearTimeout(flashTimer);
       flashTimer = 0;
     }
-    const host = document.getElementById(FLASH_HOST_ID);
-    if (host && host.parentNode) host.parentNode.removeChild(host);
+    if (flashBox) flashBox.replaceChildren();
   }
 
   function layoutFlash() {
@@ -524,14 +454,8 @@
       if (flashMark) clearFlash();
       return;
     }
-    let host = document.getElementById(FLASH_HOST_ID);
-    if (!host) {
-      host = document.createElement('div');
-      host.id = FLASH_HOST_ID;
-      host.setAttribute('aria-hidden', 'true');
-      document.documentElement.appendChild(host);
-    }
-    host.replaceChildren();
+    ensureUi();
+    flashBox.replaceChildren();
     const rects = flashMark.getClientRects();
     const n = rects.length;
     const radius = getComputedStyle(flashMark).borderRadius;
@@ -551,13 +475,14 @@
       piece.style.height = (r.height + pad * 2) + 'px';
       piece.style.borderRadius = radius;
       piece.style.direction = dir;
-      host.appendChild(piece);
+      flashBox.appendChild(piece);
     }
   }
 
   function jumpTo(id) {
+    if (!MARK_ID_RE.test(id || '')) return false;
     const mark = document.getElementById(id);
-    if (!mark) return false;
+    if (!mark || !mark.classList || !mark.classList.contains(MARK_CLASS)) return false;
     pinnedMark = mark;
     mark.scrollIntoView({ block: 'center', behavior: 'auto' });
     showTipFor(mark);
@@ -595,6 +520,7 @@
 
   function scanPage(scope, scheme) {
     pinnedMark = null;
+    unrenderedCache = Scan.createCache();
     clearHighlights();
 
     const use = (scheme === 'dark' || scheme === 'light') ? scheme : detectSiteMode();
@@ -628,12 +554,17 @@
     };
     if (!engine || !rules) return empty;
 
-    const nodes = collectTextNodes(root, wantArticle);
+    const nodes = Scan.collectTextNodes(root, { stripChrome: wantArticle, cache: unrenderedCache });
     let scannedText = '';
     const nodeMatches = [];
+    const t0 = performance.now();
+    let scannedChars = 0;
 
     for (const node of nodes) {
+      if (scannedChars >= MAX_SCAN_CHARS) break;
+      if (performance.now() - t0 > MAX_SCAN_MS) break;
       const text = node.nodeValue || '';
+      scannedChars += text.length;
       scannedText += (scannedText ? ' ' : '') + text;
       const matches = engine.mergeOverlaps(engine.findMatches(text, rules));
       nodeMatches.push({ node, text, matches });
@@ -649,7 +580,7 @@
       if (flagDashes) {
         matches = engine.mergeOverlaps(matches.concat(engine.findEmDashMatches(item.text, pack)));
       }
-      applyMatches(item.node, matches);
+      Scan.applyMatches(item.node, matches);
       allMatches.push.apply(allMatches, matches);
     }
 
@@ -669,23 +600,32 @@
     return summary;
   }
 
-  function handleMessage(msg, _sender, sendResponse) {
-    if (!msg || !msg.type) return;
+  function handleMessage(msg, sender, sendResponse) {
+    if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return;
+    if (sender && sender.id && sender.id !== chrome.runtime.id) return;
+    if (msg.type === 'SLOP_PING') {
+      sendResponse({ ok: true });
+      return;
+    }
     if (msg.type === 'SLOP_SCAN') {
-      sendResponse(scanPage(msg.scope, msg.scheme));
+      const scope = msg.scope === 'page' ? 'page' : 'article';
+      const scheme = msg.scheme === 'dark' || msg.scheme === 'light' ? msg.scheme : undefined;
+      sendResponse(scanPage(scope, scheme));
       return;
     }
     if (msg.type === 'SLOP_SCHEME') {
-      sendResponse({ ok: true, onDark: applyInkScheme(msg.scheme) });
+      const scheme = msg.scheme === 'dark' || msg.scheme === 'light' ? msg.scheme : undefined;
+      sendResponse({ ok: true, onDark: applyInkScheme(scheme) });
       return;
     }
     if (msg.type === 'SLOP_FILTER') {
-      applyTierFilter(msg.hidden || {});
+      const src = msg.hidden && typeof msg.hidden === 'object' ? msg.hidden : {};
+      applyTierFilter({ 1: !!src[1], 2: !!src[2], 3: !!src[3] });
       sendResponse({ ok: true });
       return;
     }
     if (msg.type === 'SLOP_JUMP') {
-      sendResponse({ ok: jumpTo(msg.id) });
+      sendResponse({ ok: jumpTo(typeof msg.id === 'string' ? msg.id : '') });
       return;
     }
     if (msg.type === 'SLOP_CLEAR') {
@@ -708,6 +648,7 @@
   window.__slopspotterTeardown = function () {
     pinnedMark = null;
     clearFlash();
+    dropUi();
     bound.forEach(function (item) {
       item[0].removeEventListener(item[1], item[2], item[3]);
     });

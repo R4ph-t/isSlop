@@ -60,13 +60,12 @@ function detectPack(htmlLang, text) {
     for (let i = 0; i < SLOP_PACK_IDS.length; i++) {
       const pack = getPack(SLOP_PACK_IDS[i]);
       if (!pack || !pack.stopwords) continue;
-      const set = {};
-      for (let s = 0; s < pack.stopwords.length; s++) set[pack.stopwords[s]] = true;
+      const set = new Set(pack.stopwords);
       let n = 0;
       const limit = Math.min(words.length, 400);
       for (let w = 0; w < limit; w++) {
         const token = words[w].replace(/^[^a-zàáâäèéêëìíîïòóôöùúûüüçñœæ'-]+|[^a-zàáâäèéêëìíîïòóôöùúûüüçñœæ'-]+$/g, '');
-        if (set[token]) n += 1;
+        if (set.has(token)) n += 1;
       }
       if (n > bestScore) {
         bestScore = n;

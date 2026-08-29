@@ -5,6 +5,9 @@
 .slopspotter-mark {
   all: unset;
   display: inline;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
   color: inherit;
   cursor: help;
   box-decoration-break: slice;

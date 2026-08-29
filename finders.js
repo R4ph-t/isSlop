@@ -1,7 +1,7 @@
 // Shared structural finders. Packs pass language-specific separators / skip lists.
 // Dual-env: browser global + Node.
 
-const CHAIN_BODY = String.raw`[^,.;:!?\n\u2013\u2014\u2026]*`;
+const CHAIN_BODY = String.raw`[^,.;:!?\n\u2013\u2014\u2026]{0,160}`;
 const DEFAULT_CHAIN_SEP = String.raw`(?:\s*,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+|\s*[;&\u2013\u2014]\s*(?:and\s+|or\s+)?|\s+-{1,2}\s+)`;
 
 function makeChainFinder(head, headTest, minItems, chainSep) {

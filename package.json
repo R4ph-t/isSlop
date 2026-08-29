@@ -1,0 +1,20 @@
+{
+  "name": "islop",
+  "private": true,
+  "description": "Highlight likely AI slop on the current page.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node test.js && node test-dom.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "check": "npm test && npm run lint && npm run typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@types/chrome": "^0.1.4",
+    "eslint": "^9.34.0",
+    "globals": "^16.3.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.9.2"
+  }
+}

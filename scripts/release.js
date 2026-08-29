@@ -25,6 +25,7 @@ const FILES = [
   'highlight.css',
   'content.js',
   'engine.js',
+  'scan-dom.js',
   'finders.js',
   'packs/registry.js',
   'packs/en.js',
@@ -34,6 +35,7 @@ const FILES = [
   'fonts/jetbrains-mono-var.woff2',
   'fonts/OFL-Manrope.txt',
   'fonts/OFL-JetBrains-Mono.txt',
+  'LICENSE',
   'icons/icon16.png',
   'icons/icon48.png',
   'icons/icon128.png'
@@ -64,6 +66,8 @@ function packZip(verStr) {
 
   const tests = spawnSync('node', ['test.js'], { cwd: root, stdio: 'inherit' });
   if (tests.status !== 0) process.exit(tests.status || 1);
+  const domTests = spawnSync('node', ['test-dom.js'], { cwd: root, stdio: 'inherit' });
+  if (domTests.status !== 0) process.exit(domTests.status || 1);
 
   const dist = path.join(root, 'dist');
   fs.mkdirSync(dist, { recursive: true });

@@ -27,7 +27,7 @@
         "popup.css",
         "highlight.css",
         "popup.js",
-        "packs/*.js",
+        "packs/registry.js",
         "fonts/manrope-var.woff2",
         "fonts/jetbrains-mono-var.woff2"
       ],

@@ -32,6 +32,8 @@ Page text is never written to disk, never sent over the network, and never share
 
 isSlop makes no network requests. The phrase catalog, fonts, and icons are bundled in the extension package. No remote code is loaded or executed.
 
+Websites can tell that isSlop is installed by requesting its web-accessible panel files. That check stays in the browser. isSlop still makes no network requests of its own.
+
 ## Permissions
 
 - **activeTab** — grants access to a single tab only at the moment you click the isSlop icon on it. isSlop has no standing access to the sites you visit.

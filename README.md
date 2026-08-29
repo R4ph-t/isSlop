@@ -1,6 +1,6 @@
 # isSlop
 
-Chrome extension that highlights likely AI-generated "slop" on the current page. A tooltip names the rule that fired. Nothing leaves the browser. No network, accounts, tracking, or ML APIs.
+Chrome extension that highlights likely AI-generated "slop" on the current page. A tooltip names the rule that fired. Nothing leaves the browser. No network, accounts, tracking, or ML APIs. MIT licensed.
 
 Toolbar and panel icons are from [Lucide](https://lucide.dev) (`highlighter`, `eraser`; ISC License).
 
@@ -9,7 +9,7 @@ Toolbar and panel icons are from [Lucide](https://lucide.dev) (`highlighter`, `e
 1. Open `chrome://extensions`
 2. Turn on **Developer mode**
 3. Click **Load unpacked** and select this folder
-4. Open any http(s) page and click the toolbar icon. A panel opens on the page and the tab is scanned.
+4. Open any http(s) page and click the toolbar icon. A panel opens on the page and the tab is scanned. Compose boxes and other `contenteditable` fields are left alone.
 5. Hover a highlight for the rule name and why it fired. **Hide highlights** removes marks. **Rescan** if the page changed.
 
 Chrome's own pages (`chrome://…`, the Web Store) cannot be scripted.
@@ -53,10 +53,10 @@ The only list a contributor edits besides the new file is `SLOP_PACK_IDS` in `pa
 2. Keep the IIFE wrapper (`SlopFinders` / `registerPack` / `module.exports`). Change `id`, `name`, `locales`, and `stopwords`.
 3. Write **native** `rules`. Do not translate the English catalog. LLM tells are language-specific (`delve` ≠ `plonger`; Spanish uses *cabe destacar*, not *it's worth noting*).
 4. Add `'<id>'` to `SLOP_PACK_IDS` in `packs/registry.js`.
-5. Add fixtures in `test.js`: a slop paragraph that scores high, a human paragraph that stays at **score 0**, plus `detectPack('<id>', '')` and a stopword-vote case.
-6. Run `node test.js`. Existing English and French tests must still pass.
+5. Add fixtures in `test.js`: a slop paragraph that scores high, a human paragraph that stays **under 8**, plus `detectPack('<id>', '')` and a stopword-vote case.
+6. Run `npm test`. Existing English, French, and DOM editor-skip tests must still pass.
 
-Set `verified: true` only when a native speaker has scanned real pages in that language and the human fixture still scores 0. Leave `verified: false` (and say so in the file header) if the catalog is compiled from published lists but not attested yet. Unverified packs still run on matching `lang`; the popup labels them so hits are treated as drafts.
+Set `verified: true` only when a native speaker has scanned real pages in that language and the human fixture still scores under 8. Leave `verified: false` (and say so in the file header) if the catalog is compiled from published lists but not attested yet. Unverified packs still run on matching `lang`; the popup labels them so hits are treated as drafts.
 
 ### Pack shape
 
@@ -111,10 +111,15 @@ To add a rule to an existing pack, append an object to `rules` in that pack file
 ## Tests
 
 ```
-node test.js
+npm test          # engine catalogs + jsdom wrapRange / editor skips
+npm run lint
+npm run typecheck
+npm run check     # all three
 ```
 
-Packs, `finders.js`, and `engine.js` are dual-environment (browser global + Node) so the same match/merge/score logic runs in tests and in the content script.
+`node test.js` is the zero-dependency catalog suite. `test-dom.js` needs `npm install` (jsdom).
+
+Packs, `finders.js`, `engine.js`, and `scan-dom.js` are dual-environment (browser global + Node) so match/merge/score and wrapRange run in tests and in the content script.
 
 ## Release (Chrome Web Store)
 

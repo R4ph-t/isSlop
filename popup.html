@@ -3,10 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>isSlop</title>
-  <script>
-    document.documentElement.dataset.theme =
-      matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  </script>
   <link rel="stylesheet" href="highlight.css" />
   <link rel="stylesheet" href="popup.css" />
 </head>
@@ -31,7 +27,7 @@
       <div id="info-tip" class="info-tip" role="tooltip">
         <p class="info-kicker">100% LOCAL</p>
         <p>Nothing leaves the browser. No network, no accounts, no tracking. The page is scored on this tab and never sent anywhere.</p>
-        <p class="info-ver mono">v<span id="ext-version">1.0.0</span></p>
+        <p class="info-ver mono">v<span id="ext-version"></span></p>
       </div>
     </div>
     <span class="words mono"><span id="words">0</span> WORDS<span id="elapsed"></span></span>

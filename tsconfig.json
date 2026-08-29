@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "none",
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "types": ["chrome"],
+    "maxNodeModuleJsDepth": 0
+  },
+  "include": [
+    "background.js",
+    "panel.js",
+    "engine.js",
+    "finders.js",
+    "scan-dom.js",
+    "types/*.d.ts"
+  ]
+}

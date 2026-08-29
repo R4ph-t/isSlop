@@ -238,6 +238,8 @@ console.log('10. French pack');
   assert(detectPack('fr-CA', '').id === 'fr', 'html lang=fr-CA → French pack');
   assert(detectPack('en-US', '').id === 'en', 'html lang=en-US → English pack');
   assert(detectPack('', FR_HUMAN).id === 'fr', 'stopword vote on French prose → fr');
+  assert(detectPack('', FR_HUMAN + ' constructor toString valueOf').id === 'fr', 'prototype tokens do not steal a French vote');
+  assert(detectPack('', 'constructor toString valueOf __proto__ '.repeat(40)).id === 'en', 'prototype-only text falls back to English');
 }
 
 // 11. Spanish pack (unverified)
@@ -282,6 +284,24 @@ console.log('11. Spanish pack (unverified)');
   assert(detectPack('es', '').id === 'es', 'html lang=es → Spanish pack');
   assert(detectPack('es-MX', '').id === 'es', 'html lang=es-MX → Spanish pack');
   assert(detectPack('', ES_HUMAN).id === 'es', 'stopword vote on Spanish prose → es');
+}
+
+console.log('12. Engine guards');
+{
+  const t0 = Date.now();
+  const hits = engine.findMatches('delve and delve again', [{
+    id: 'nog',
+    name: 'x',
+    tier: 3,
+    category: 'Vocabulary',
+    re: /delve/,
+    why: 'x'
+  }]);
+  assert(Date.now() - t0 < 200, 'non-global re does not hang');
+  assert(hits.length === 2, 'non-global re is treated as global (got ' + hits.length + ')');
+  const { detectPack } = require('./packs/registry.js');
+  const noise = 'constructor toString valueOf hasOwnProperty __proto__ ';
+  assert(detectPack('', noise.repeat(50)).id === 'en', 'stopword map is not Object.prototype');
 }
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
