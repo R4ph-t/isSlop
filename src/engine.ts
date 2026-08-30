@@ -3,7 +3,8 @@ import { activePack } from './packs/registry';
 import './packs';
 
 export const TIER_WEIGHT: Record<number, number> = { 3: 4, 2: 2, 1: 1 };
-export const SCORE_MULTIPLIER = 25;
+export const SCORE_MULTIPLIER = 20;
+export const SCORE_PRIOR_WORDS = 200;
 
 export function currentPack(pack?: Pack | null): Pack {
   return pack || activePack();
@@ -125,7 +126,8 @@ export function scoreFromHits(matches: Match[], wordCount: number): number {
   for (const m of matches) {
     weightedHits += TIER_WEIGHT[m.rule.tier] || 0;
   }
-  const density = (weightedHits / wordCount) * 100;
+  const denom = wordCount + SCORE_PRIOR_WORDS;
+  const density = (weightedHits / denom) * 100;
   const score = Math.round(density * SCORE_MULTIPLIER);
   return Math.max(0, Math.min(100, score));
 }

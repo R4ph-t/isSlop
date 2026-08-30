@@ -9,11 +9,9 @@ const rescanBtn = mustEl<HTMLButtonElement>('rescan');
 const statusEl = mustEl<HTMLElement>('status');
 const resultsEl = mustEl<HTMLElement>('results');
 
-type ScanScope = 'article' | 'page';
 type HiddenTiers = { 1: boolean; 2: boolean; 3: boolean };
 
 let scanned = false;
-let scanScope: ScanScope = 'article';
 let lastSummary: import('./types').PageSummary | null = null;
 const hiddenTiers: HiddenTiers = { 1: false, 2: false, 3: false };
 const isPreview = new URLSearchParams(location.search).has('preview');
@@ -96,9 +94,9 @@ function paintBar(score: number, tiers?: { 1?: number; 2?: number; 3?: number })
   const t3 = (tiers && tiers[3]) || 0;
   const t2 = (tiers && tiers[2]) || 0;
   const t1 = (tiers && tiers[1]) || 0;
-  const weighted = t3 * 3 + t2 * 2 + t1;
+  const weighted = t3 * 4 + t2 * 2 + t1;
   const parts = weighted
-    ? [(t3 * 3) / weighted, (t2 * 2) / weighted, t1 / weighted]
+    ? [(t3 * 4) / weighted, (t2 * 2) / weighted, t1 / weighted]
     : [0, 0, 0];
   ['b3', 'b2', 'b1'].forEach(function (cls, i) {
     const el = bar.querySelector('.' + cls);
@@ -112,29 +110,17 @@ function blurb(n: number, score: number, where?: string): string {
   if (score < 15) {
     return n + (n === 1 ? ' flag. ' : ' flags. ') + 'Most of ' + place + ' reads as written by a person.';
   }
+  if (score >= 70) {
+    return n === 1
+      ? 'One flag, but dense for this length.'
+      : n + ' flags. Dense for this length, not a couple of strays.';
+  }
   const who = n === 1 ? 'One passage carries' : n + ' passages carry';
   return who + ' almost all of it. The rest of ' + place + ' reads as written by a person.';
 }
 
 function scopeWhere(summary?: import('./types').PageSummary | null): string {
-  return summary && summary.scope === 'article' && summary.root !== 'body'
-    ? 'the article'
-    : 'the page';
-}
-
-function scopeNote(summary?: import('./types').PageSummary | null): string {
-  if (!summary) return '';
-  if (summary.scope === 'page') return '';
-  if (summary.root === 'body') return 'No article block found. Skipped nav, footer, and asides.';
-  return '';
-}
-
-function paintScope() {
-  document.querySelectorAll<HTMLButtonElement>('[data-scope]').forEach(function (btn) {
-    const on = btn.dataset.scope === scanScope;
-    btn.classList.toggle('is-on', on);
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-  });
+  return summary && summary.root && summary.root !== 'body' ? 'the article' : 'the page';
 }
 
 function paintLevels() {
@@ -277,9 +263,6 @@ function render(summary: import('./types').PageSummary, elapsedMs?: number): voi
   });
   paintBar(summary.score, tiers);
   mustEl('blurb').textContent = blurb(total, summary.score, scopeWhere(summary));
-  const noteEl = document.getElementById('scope-note');
-  if (noteEl) noteEl.textContent = scopeNote(summary);
-  paintScope();
   paintLevels();
 
   const note = document.getElementById('pack-note');
@@ -306,10 +289,7 @@ async function runScan() {
     const tab = await activeTab();
     const tabId = requireTabId(tab);
     await ensureInjected(tabId);
-    const summary = await chrome.tabs.sendMessage(tabId, {
-      type: 'SLOP_SCAN',
-      scope: scanScope
-    });
+    const summary = await chrome.tabs.sendMessage(tabId, { type: 'SLOP_SCAN' });
     await chrome.tabs.sendMessage(tabId, { type: 'SLOP_FILTER', hidden: hiddenTiers });
     statusEl.classList.remove('is-error');
     render(summary, performance.now() - t0);
@@ -439,23 +419,6 @@ applyScheme(currentScheme(), false);
 document.querySelectorAll<HTMLButtonElement>('[data-scheme]').forEach(function (btn) {
   btn.addEventListener('click', function () {
     applyScheme(btn.dataset.scheme || 'light', false);
-  });
-});
-
-document.querySelectorAll<HTMLButtonElement>('[data-scope]').forEach(function (btn) {
-  btn.addEventListener('click', function () {
-    const next = btn.dataset.scope === 'page' ? 'page' : 'article';
-    if (next === scanScope) return;
-    scanScope = next;
-    paintScope();
-    if (!isPreview) {
-      runScan();
-      return;
-    }
-    if (lastSummary) {
-      lastSummary = Object.assign({}, lastSummary, { scope: scanScope, root: scanScope === 'article' ? 'article' : 'body' });
-      render(lastSummary, 4100);
-    }
   });
 });
 

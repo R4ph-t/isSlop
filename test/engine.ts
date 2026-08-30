@@ -285,7 +285,26 @@ console.log('11. Spanish pack (unverified)');
   assert(detectPack('', ES_HUMAN).id === 'es', 'stopword vote on Spanish prose → es');
 }
 
-console.log('12. Engine guards');
+console.log('12. Score scale');
+{
+  const three = [
+    { start: 0, end: 1, rule: { tier: 3 } },
+    { start: 2, end: 3, rule: { tier: 2 } },
+    { start: 4, end: 5, rule: { tier: 2 } }
+  ];
+  const short = engine.scoreFromHits(three as any, 94);
+  assert(short < 70, 'short page with 3 flags is not slop city (got ' + short + ')');
+  assert(short >= 15, 'short page with 3 flags still scores (got ' + short + ')');
+  const caption = engine.scoreFromHits([{ start: 0, end: 1, rule: { tier: 2 } }] as any, 40);
+  assert(caption < 70, 'one medium on a caption is not slop city (got ' + caption + ')');
+  const wall = engine.scoreFromHits(
+    Array.from({ length: 30 }, () => ({ start: 0, end: 1, rule: { tier: 3 } })) as any,
+    200
+  );
+  assert(wall >= 80, 'wall-to-wall slop still scores high (got ' + wall + ')');
+}
+
+console.log('13. Engine guards');
 {
   const t0 = Date.now();
   const hits = engine.findMatches('delve and delve again', [{

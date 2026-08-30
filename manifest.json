@@ -1,13 +1,20 @@
 {
   "manifest_version": 3,
   "name": "isSlop",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Highlight likely AI slop on any page. Nothing leaves the browser. No network, no tracking.",
-  "permissions": ["activeTab", "scripting"],
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://docs.google.com/document/*"],
-      "js": ["docs-annotate.js"],
+      "matches": [
+        "https://docs.google.com/document/*"
+      ],
+      "js": [
+        "docs-annotate.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     }
@@ -38,7 +45,9 @@
         "fonts/manrope-var.woff2",
         "fonts/jetbrains-mono-var.woff2"
       ],
-      "matches": ["<all_urls>"]
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

@@ -784,13 +784,12 @@ function listen(
     }
   }
 
-  function scanPage(scope: string): import('./types').PageSummary {
+  function scanPage(): import('./types').PageSummary {
     pinnedMark = null;
     unrenderedCache = Scan.createCache();
     clearHighlights();
 
-    const wantArticle = scope !== 'page';
-    const picked = wantArticle ? pickContentRoot() : { root: document.body, kind: 'body' };
+    const picked = pickContentRoot();
     const root = (picked.root && picked.root.nodeType === 1) ? picked.root : document.body;
     const onDark = applyInkScheme(detectSiteMode(root));
 
@@ -806,12 +805,12 @@ function listen(
       tiers: { 1: 0, 2: 0, 3: 0 },
       categories: [],
       findings: [],
-      scope: (wantArticle ? 'article' : 'page') as 'article' | 'page',
+      scope: 'article' as const,
       root: picked.kind || 'body'
     };
 
-    const nodes = Scan.collectTextNodes(root, { stripChrome: wantArticle, cache: unrenderedCache });
-    const ariaLabels = Scan.collectAriaText(root, { stripChrome: wantArticle, cache: unrenderedCache });
+    const nodes = Scan.collectTextNodes(root, { stripChrome: true, cache: unrenderedCache });
+    const ariaLabels = Scan.collectAriaText(root, { stripChrome: true, cache: unrenderedCache });
     const runs = Scan.groupTextRuns(nodes).map(function (group) {
       return Scan.joinTextRun(group);
     });
@@ -920,7 +919,7 @@ function listen(
       onDark,
       scheme: onDark ? 'dark' : 'light',
       findings: marked.length ? marked : pendingFindings,
-      scope: wantArticle ? 'article' : 'page',
+      scope: 'article',
       root: picked.kind || 'body'
     };
     if (pack) {
@@ -935,15 +934,14 @@ function listen(
 
   function handleMessage(msg: unknown, sender: chrome.runtime.MessageSender, sendResponse: (r?: unknown) => void): void {
     if (!msg || typeof msg !== 'object' || !('type' in msg) || typeof (msg as { type: unknown }).type !== 'string') return;
-    const data = msg as { type: string; scope?: string; scheme?: string; hidden?: { 1?: boolean; 2?: boolean; 3?: boolean }; id?: string };
+    const data = msg as { type: string; scheme?: string; hidden?: { 1?: boolean; 2?: boolean; 3?: boolean }; id?: string };
     if (sender && sender.id && sender.id !== chrome.runtime.id) return;
     if (data.type === 'SLOP_PING') {
       sendResponse({ ok: true });
       return;
     }
     if (data.type === 'SLOP_SCAN') {
-      const scope = data.scope === 'page' ? 'page' : 'article';
-      sendResponse(scanPage(scope));
+      sendResponse(scanPage());
       return;
     }
     if (data.type === 'SLOP_SCHEME') {

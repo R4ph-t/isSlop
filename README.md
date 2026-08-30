@@ -28,9 +28,11 @@ Chrome's own pages (`chrome://…`, the Web Store) cannot be scripted.
 Each hit has a tier weight: tier 3 = 4, tier 2 = 2, tier 1 = 1.
 
 ```
-density = weightedHits / wordCount * 100
-score   = clamp(round(density * 25), 0, 100)
+density = weightedHits / (wordCount + 200) * 100
+score   = clamp(round(density * 20), 0, 100)
 ```
+
+The +200 is a length cushion so a short page with a few tells does not instantly hit 100.
 
 Labels: below 15 Reads human · 15–39 Some slop patterns · 40–69 Heavy slop · 70+ Slop city.
 
