@@ -15,24 +15,39 @@ const root = path.join(__dirname, '..');
 const manifestPath = path.join(root, 'manifest.json');
 const kind = (process.argv[2] || '').toLowerCase();
 
-const EXT_FILES = [
-  'manifest.json',
-  'background.js',
+// Extra files that are not named in the manifest (licenses, panel inject).
+const EXTRA_FILES = [
   'panel.js',
-  'popup.html',
-  'popup.css',
-  'popup.js',
-  'highlight.css',
   'content.js',
-  'fonts/manrope-var.woff2',
-  'fonts/jetbrains-mono-var.woff2',
   'fonts/OFL-Manrope.txt',
   'fonts/OFL-JetBrains-Mono.txt',
-  'LICENSE',
-  'icons/icon16.png',
-  'icons/icon48.png',
-  'icons/icon128.png'
+  'LICENSE'
 ];
+
+function addPath(paths, p) {
+  if (typeof p === 'string' && p) paths.add(p);
+}
+
+function addPathMap(paths, obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+  Object.keys(obj).forEach(function (k) { addPath(paths, obj[k]); });
+}
+
+function manifestPaths(manifest) {
+  const paths = new Set(['manifest.json']);
+  addPath(paths, manifest.background && manifest.background.service_worker);
+  addPath(paths, manifest.action && manifest.action.default_popup);
+  addPathMap(paths, manifest.action && manifest.action.default_icon);
+  addPathMap(paths, manifest.icons);
+  (manifest.content_scripts || []).forEach(function (cs) {
+    (cs.js || []).forEach(function (f) { addPath(paths, f); });
+    (cs.css || []).forEach(function (f) { addPath(paths, f); });
+  });
+  (manifest.web_accessible_resources || []).forEach(function (war) {
+    (war.resources || []).forEach(function (f) { addPath(paths, f); });
+  });
+  return Array.from(paths);
+}
 
 function parseVer(s) {
   const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(s);
@@ -62,7 +77,9 @@ function packZip(verStr) {
   run('npm', ['run', 'build']);
 
   const dist = path.join(root, 'dist');
-  const missing = EXT_FILES.filter(function (f) {
+  const distManifest = JSON.parse(fs.readFileSync(path.join(dist, 'manifest.json'), 'utf8'));
+  const files = Array.from(new Set(manifestPaths(distManifest).concat(EXTRA_FILES)));
+  const missing = files.filter(function (f) {
     return !fs.existsSync(path.join(dist, f));
   });
   if (missing.length) throw new Error('missing built files: ' + missing.join(', '));
@@ -74,7 +91,7 @@ function packZip(verStr) {
   const zipPath = path.join(outDir, zipName);
   if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
 
-  const zipped = spawnSync('zip', ['-q', '-X', zipPath].concat(EXT_FILES), {
+  const zipped = spawnSync('zip', ['-q', '-X', zipPath].concat(files), {
     cwd: dist,
     stdio: 'inherit'
   });
@@ -82,8 +99,11 @@ function packZip(verStr) {
 
   const listing = spawnSync('unzip', ['-l', zipPath], { encoding: 'utf8' });
   const names = listing.stdout || '';
-  if (names.indexOf('manifest.json') === -1) {
-    throw new Error('zip is missing manifest.json');
+  const missingFromZip = files.filter(function (f) {
+    return names.indexOf(f) === -1;
+  });
+  if (missingFromZip.length) {
+    throw new Error('zip is missing: ' + missingFromZip.join(', '));
   }
   if (/\btest\b/.test(names) || names.indexOf('.git/') !== -1 || names.indexOf('src/') !== -1) {
     throw new Error('zip contains files that should not ship');
