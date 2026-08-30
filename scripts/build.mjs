@@ -46,3 +46,8 @@ for (const rel of staticFiles) {
   fs.mkdirSync(path.dirname(to), { recursive: true });
   fs.copyFileSync(from, to);
 }
+
+fs.copyFileSync(
+  path.join(root, 'src/docs-annotate.js'),
+  path.join(dist, 'docs-annotate.js')
+);

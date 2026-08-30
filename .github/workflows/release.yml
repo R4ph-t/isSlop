@@ -28,7 +28,7 @@ jobs:
           fi
       - run: npm run lint
       - run: npm run typecheck
-      - run: node scripts/release.js pack
+      - run: npm run release
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -38,6 +38,19 @@ export default tseslint.config(
     }
   },
   {
+    files: ['src/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: {
+        ...globals.browser
+      }
+    },
+    rules: {
+      'no-empty': ['error', { allowEmptyCatch: true }]
+    }
+  },
+  {
     files: ['**/*.ts'],
     languageOptions: {
       globals: {

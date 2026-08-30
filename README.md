@@ -16,7 +16,7 @@ npm run build
 1. Open `chrome://extensions`
 2. Turn on **Developer mode**
 3. Click **Load unpacked** and select the `dist/` folder
-4. Open any http(s) page and click the toolbar icon. A panel opens on the page and the tab is scanned. Compose boxes and other `contenteditable` fields are left alone.
+4. Open any http(s) page and click the toolbar icon. A panel opens on the page and the tab is scanned. Comment boxes and other small compose fields are left alone. Page editors (a Notion doc, a Google Doc, or any similar block/document editor) are scanned.
 5. Hover a highlight for the rule name and why it fired. **Hide highlights** removes marks. **Rescan** if the page changed.
 
 After changing source, run `npm run build` again, then **Reload** the extension.
@@ -136,8 +136,11 @@ Version lives in one place: `manifest.json` `"version"`. Chrome only accepts `x.
 ### 1. Bump and zip locally
 
 ```
-node scripts/release.js pack              # zip current version → dist/islop-x.y.z.zip
-node scripts/release.js patch|minor|major # bump, retest, zip
+npm run build           # emit dist/ for Load unpacked
+npm run release         # zip current version → dist/islop-x.y.z.zip
+npm run release:patch   # bump patch, retest, zip
+npm run release:minor
+npm run release:major
 ```
 
 The zip has `manifest.json` at the archive root (required). It excludes `.git`, tests, SVGs, and this README.

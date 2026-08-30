@@ -4,6 +4,14 @@
   "version": "0.1.1",
   "description": "Highlight likely AI slop on any page. Nothing leaves the browser. No network, no tracking.",
   "permissions": ["activeTab", "scripting"],
+  "content_scripts": [
+    {
+      "matches": ["https://docs.google.com/document/*"],
+      "js": ["docs-annotate.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
   "background": {
     "service_worker": "background.js"
   },

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Bump manifest version (semver) and/or zip a Chrome Web Store package.
 //
-//   node scripts/release.js pack            zip current version
-//   node scripts/release.js patch|minor|major
+//   npm run release              zip current version
+//   npm run release:patch|minor|major
 //
 // Chrome only accepts x.y.z integers in the manifest. No -beta suffixes.
 // Does not commit or tag. After a bump: commit, then git tag vX.Y.Z
@@ -94,8 +94,8 @@ function packZip(verStr) {
 if (['pack', 'patch', 'minor', 'major'].indexOf(kind) === -1) {
   process.stderr.write(
     'Usage:\n' +
-    '  node scripts/release.js pack\n' +
-    '  node scripts/release.js patch|minor|major\n'
+    '  npm run release\n' +
+    '  npm run release:patch|minor|major\n'
   );
   process.exit(1);
 }

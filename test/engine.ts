@@ -239,6 +239,8 @@ console.log('10. French pack');
   assert(detectPack('', FR_HUMAN).id === 'fr', 'stopword vote on French prose → fr');
   assert(detectPack('', FR_HUMAN + ' constructor toString valueOf').id === 'fr', 'prototype tokens do not steal a French vote');
   assert(detectPack('', 'constructor toString valueOf __proto__ '.repeat(40)).id === 'en', 'prototype-only text falls back to English');
+  assert(detectPack('fr', HUMAN).id === 'en', 'English body beats French UI lang');
+  assert(detectPack('en', FR_HUMAN).id === 'fr', 'French body beats English UI lang');
 }
 
 // 11. Spanish pack (unverified)

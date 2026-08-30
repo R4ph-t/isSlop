@@ -5,6 +5,10 @@
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "release": "node scripts/release.js pack",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major",
     "test": "tsx test/engine.ts && tsx test/dom.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

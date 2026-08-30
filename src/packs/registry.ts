@@ -34,45 +34,61 @@ function fallbackPack(): Pack {
   return getPack(SLOP_FALLBACK_PACK) || activePack();
 }
 
-export function detectPack(htmlLang: string, text: string): Pack {
+function packFromLang(htmlLang: string): Pack | null {
   const lang = String(htmlLang || '').trim().toLowerCase().replace(/_/g, '-');
   const prefix = lang.split('-')[0] ?? '';
-  if (prefix) {
+  if (!prefix) return null;
+  for (let i = 0; i < SLOP_PACK_IDS.length; i++) {
+    const id = SLOP_PACK_IDS[i];
+    if (!id) continue;
+    const pack = getPack(id);
+    if (!pack) continue;
+    if (pack.id === prefix) return pack;
+    const locales = pack.locales || [];
+    for (let j = 0; j < locales.length; j++) {
+      if (String(locales[j]).toLowerCase() === lang) return pack;
+    }
+  }
+  return null;
+}
+
+function stopwordScore(pack: Pack, words: string[]): number {
+  if (!pack.stopwords) return 0;
+  const set = new Set(pack.stopwords);
+  let n = 0;
+  const limit = Math.min(words.length, 400);
+  for (let w = 0; w < limit; w++) {
+    const raw = words[w] ?? '';
+    const token = raw.replace(/^[^a-zàáâäèéêëìíîïòóôöùúûüüçñœæ'-]+|[^a-zàáâäèéêëìíîïòóôöùúûüüçñœæ'-]+$/g, '');
+    if (set.has(token)) n += 1;
+  }
+  return n;
+}
+
+export function detectPack(htmlLang: string, text: string): Pack {
+  const htmlPack = packFromLang(htmlLang);
+  const words = text ? String(text).toLowerCase().split(/\s+/) : [];
+  let voted: Pack | null = null;
+  let votedScore = -1;
+  if (words.length) {
     for (let i = 0; i < SLOP_PACK_IDS.length; i++) {
       const id = SLOP_PACK_IDS[i];
       if (!id) continue;
       const pack = getPack(id);
       if (!pack) continue;
-      if (pack.id === prefix) return pack;
-      const locales = pack.locales || [];
-      for (let j = 0; j < locales.length; j++) {
-        if (String(locales[j]).toLowerCase() === lang) return pack;
+      const n = stopwordScore(pack, words);
+      if (n > votedScore) {
+        votedScore = n;
+        voted = pack;
       }
     }
   }
-  if (text) {
-    const words = String(text).toLowerCase().split(/\s+/);
-    let best: Pack | null = null;
-    let bestScore = -1;
-    for (let i = 0; i < SLOP_PACK_IDS.length; i++) {
-      const id = SLOP_PACK_IDS[i];
-      if (!id) continue;
-      const pack = getPack(id);
-      if (!pack || !pack.stopwords) continue;
-      const set = new Set(pack.stopwords);
-      let n = 0;
-      const limit = Math.min(words.length, 400);
-      for (let w = 0; w < limit; w++) {
-        const raw = words[w] ?? '';
-        const token = raw.replace(/^[^a-zàáâäèéêëìíîïòóôöùúûüüçñœæ'-]+|[^a-zàáâäèéêëìíîïòóôöùúûüüçñœæ'-]+$/g, '');
-        if (set.has(token)) n += 1;
-      }
-      if (n > bestScore) {
-        bestScore = n;
-        best = pack;
-      }
-    }
-    if (best && bestScore >= 8) return best;
+  if (voted && votedScore >= 8) {
+    if (!htmlPack || voted.id === htmlPack.id) return voted;
+    const htmlScore = stopwordScore(htmlPack, words);
+    if (votedScore >= htmlScore + 4) return voted;
   }
+  if (htmlPack) return htmlPack;
+  if (voted && votedScore >= 8) return voted;
   return fallbackPack();
 }

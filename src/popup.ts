@@ -157,6 +157,41 @@ function visibleFindings(list?: import('./types').Finding[] | null): import('./t
   });
 }
 
+type FindingGroup = import('./types').Finding & { count: number; ids: string[] };
+
+function snippetKey(snippet: string): string {
+  const snip = String(snippet || '').replace(/\s+/g, ' ').trim();
+  if (!snip) return '';
+  if (!/[a-zà-ÿ0-9]/i.test(snip)) return '—';
+  const words = snip.toLowerCase().split(' ');
+  if (words.length === 1) {
+    const token = (words[0] || '').replace(/[^a-zà-ÿ'-]/g, '');
+    return token.length > 6 ? token.slice(0, 6) : token;
+  }
+  return snip.toLowerCase();
+}
+
+function groupFindings(list: import('./types').Finding[]): FindingGroup[] {
+  const groups = new Map<string, FindingGroup>();
+  const order: string[] = [];
+  for (let i = 0; i < list.length; i++) {
+    const hit = list[i];
+    if (!hit) continue;
+    const key = hit.name + '\0' + snippetKey(hit.snippet);
+    let group = groups.get(key);
+    if (!group) {
+      group = { id: hit.id, name: hit.name, snippet: hit.snippet, tier: hit.tier, count: 0, ids: [] };
+      groups.set(key, group);
+      order.push(key);
+    }
+    group.count += 1;
+    if (hit.id) group.ids.push(hit.id);
+  }
+  return order.map(function (key) { return groups.get(key); }).filter(function (g): g is FindingGroup {
+    return !!g;
+  });
+}
+
 function tierName(tier: number): string {
   if (tier === 3) return 'HEAVY';
   if (tier === 2) return 'MEDIUM';
@@ -176,12 +211,15 @@ function renderFindings(list?: import('./types').Finding[] | null): void {
     root.appendChild(li);
     return;
   }
-  for (const hit of list) {
+  const grouped = groupFindings(list);
+  for (const hit of grouped) {
     const li = document.createElement('li');
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'finding';
-    btn.dataset.id = hit.id;
+    const ids = hit.ids.length ? hit.ids : (hit.id ? [hit.id] : []);
+    if (ids[0]) btn.dataset.id = ids[0];
+    if (ids.length) btn.dataset.ids = ids.join(' ');
 
     const copy = document.createElement('span');
     copy.className = 'finding-copy';
@@ -195,6 +233,13 @@ function renderFindings(list?: import('./types').Finding[] | null): void {
 
     const meta = document.createElement('span');
     meta.className = 'finding-meta';
+    if (hit.count > 1) {
+      const count = document.createElement('span');
+      count.className = 'finding-count';
+      count.textContent = '×' + hit.count;
+      count.title = hit.count + ' times on this page';
+      meta.appendChild(count);
+    }
     const tag = document.createElement('span');
     tag.className = 'tier-tag t' + hit.tier;
     tag.textContent = tierName(hit.tier);
@@ -236,9 +281,6 @@ function render(summary: import('./types').PageSummary, elapsedMs?: number): voi
   if (noteEl) noteEl.textContent = scopeNote(summary);
   paintScope();
   paintLevels();
-  if (summary.scheme === 'dark' || summary.scheme === 'light') {
-    applyScheme(summary.scheme, false);
-  }
 
   const note = document.getElementById('pack-note');
   if (note) {
@@ -253,6 +295,7 @@ function render(summary: import('./types').PageSummary, elapsedMs?: number): voi
 
   const findings = summary.findings && summary.findings.length ? summary.findings : [];
   renderFindings(visibleFindings(findings));
+  reportPanelSize();
 }
 
 async function runScan() {
@@ -270,7 +313,12 @@ async function runScan() {
     await chrome.tabs.sendMessage(tabId, { type: 'SLOP_FILTER', hidden: hiddenTiers });
     statusEl.classList.remove('is-error');
     render(summary, performance.now() - t0);
-    setStatus('');
+    const docsCanvas = !!(tab.url && /docs\.google\.com\/document\//.test(tab.url));
+    if (docsCanvas && !(summary && summary.wordCount)) {
+      setStatus('Reload this Google Doc once, then Rescan. Docs paints text on a canvas until that happens.');
+    } else {
+      setStatus('');
+    }
   } catch (err) {
     setScanned(false);
     statusEl.classList.add('is-error');
@@ -352,12 +400,18 @@ mustEl('findings').addEventListener('click', async function (e) {
   const target = e.target;
   if (!(target instanceof Element)) return;
   const btn = target.closest('.finding');
-  if (!(btn instanceof HTMLElement) || !btn.dataset.id) return;
+  if (!(btn instanceof HTMLElement)) return;
+  const ids = (btn.dataset.ids || btn.dataset.id || '').split(/\s+/).filter(Boolean);
+  if (!ids.length) return;
+  const next = Number(btn.dataset.jump || '0') % ids.length;
+  btn.dataset.jump = String(next + 1);
+  const id = ids[next];
+  if (!id) return;
   try {
     const tab = await activeTab();
     const tabId = requireTabId(tab);
     await ensureInjected(tabId);
-    await chrome.tabs.sendMessage(tabId, { type: 'SLOP_JUMP', id: btn.dataset.id });
+    await chrome.tabs.sendMessage(tabId, { type: 'SLOP_JUMP', id: id });
   } catch (err) {
     /* page gone */
   }
@@ -384,7 +438,7 @@ applyScheme(currentScheme(), false);
 
 document.querySelectorAll<HTMLButtonElement>('[data-scheme]').forEach(function (btn) {
   btn.addEventListener('click', function () {
-    applyScheme(btn.dataset.scheme || 'light');
+    applyScheme(btn.dataset.scheme || 'light', false);
   });
 });
 
@@ -436,7 +490,13 @@ if (isPreview) {
     findings: [
       { id: 'p1', name: 'Closing platitude', snippet: 'At the end of the day, the possibilities are truly endless.', tier: 3 },
       { id: 'p2', name: 'Template opener', snippet: "In today's rapidly evolving digital landscape", tier: 2 },
-      { id: 'p3', name: 'Signature vocabulary', snippet: "Let's delve into the rich tapestry of…", tier: 2 },
+      { id: 'p3', name: 'Corporate/AI-favored vocabulary', snippet: 'Foster', tier: 2 },
+      { id: 'p3b', name: 'Corporate/AI-favored vocabulary', snippet: 'fosters', tier: 2 },
+      { id: 'p3c', name: 'Corporate/AI-favored vocabulary', snippet: 'Foster', tier: 2 },
+      { id: 'p5', name: 'Em dash overuse', snippet: '—', tier: 1 },
+      { id: 'p5b', name: 'Em dash overuse', snippet: '—', tier: 1 },
+      { id: 'p5c', name: 'Em dash overuse', snippet: '—', tier: 1 },
+      { id: 'p5d', name: 'Em dash overuse', snippet: '—', tier: 1 },
       { id: 'p4', name: 'Hollow tribute', snippet: 'a testament to the power of…', tier: 1 }
     ]
   }, 4100);
@@ -448,7 +508,10 @@ function reportPanelSize() {
   if (window.parent === window) return;
   const shell = document.querySelector('.shell');
   if (!shell || typeof chrome === 'undefined' || !chrome.tabs) return;
-  const h = Math.ceil(shell.getBoundingClientRect().height);
+  const results = document.getElementById('results');
+  const h = results && !results.hidden
+    ? 720
+    : Math.max(120, Math.ceil(shell.getBoundingClientRect().height));
   if (!h) return;
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     const tab = tabs && tabs[0];

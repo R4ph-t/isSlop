@@ -11,13 +11,24 @@ const MARK_CLASS = Scan.MARK_CLASS;
 const MARK_ID_RE = Scan.MARK_ID_RE;
 const DARK_CLASS = 'slopspotter-on-dark';
 const MAX_SCAN_CHARS = 200000;
-const MAX_SCAN_MS = 450;
+const MAX_SCAN_MS = 2000;
 const TIER_NAME: Record<string, string> = { 3: 'HEAVY', 2: 'MEDIUM', 1: 'LIGHT' };
 
 let pinnedMark: HTMLElement | null = null;
 let flashMark: HTMLElement | null = null;
 let flashTimer = 0;
 let unrenderedCache = Scan.createCache();
+let overlayHost: HTMLElement | null = null;
+type OverlayAnchor = {
+  mark: HTMLElement;
+  el?: Element;
+  node?: Text;
+  start?: number;
+  end?: number;
+  label?: string;
+  passive?: boolean;
+};
+const overlayAnchors: OverlayAnchor[] = [];
 let uiHost: HTMLElement | null = null;
 let uiShadow: ShadowRoot | null = null;
 let tipEl: HTMLElement | null = null;
@@ -51,7 +62,7 @@ function listen(
   }
 
   function pickContentRoot() {
-    const minWords = 80;
+    const minWords = 40;
     const articles = listTopLevel('article').map(function (el) {
       return { el: el, w: countVisibleWords(el) };
     }).filter(function (item) {
@@ -60,9 +71,19 @@ function listen(
       return b.w - a.w;
     });
 
-    if (articles.length === 1) return { root: articles[0].el, kind: 'article' };
+    function widen(picked: { el: Element; w: number; kind: string }) {
+      const main = document.querySelector('main, [role="main"]');
+      if (!main || main === picked.el) return { root: picked.el, kind: picked.kind };
+      const mw = countVisibleWords(main);
+      if (main.contains(picked.el) && mw >= 80 && picked.w * 2.5 < mw) {
+        return { root: main, kind: 'main' };
+      }
+      return { root: picked.el, kind: picked.kind };
+    }
+
+    if (articles.length === 1) return widen({ el: articles[0].el, w: articles[0].w, kind: 'article' });
     if (articles.length > 1 && articles[0].w >= articles[1].w * 2.5) {
-      return { root: articles[0].el, kind: 'article' };
+      return widen({ el: articles[0].el, w: articles[0].w, kind: 'article' });
     }
 
     const hooks = document.querySelectorAll(
@@ -74,9 +95,9 @@ function listen(
       if (w >= minWords) hookScores.push({ el: hooks[i], w: w });
     }
     hookScores.sort(function (a, b) { return b.w - a.w; });
-    if (hookScores.length === 1) return { root: hookScores[0].el, kind: 'article' };
+    if (hookScores.length === 1) return widen({ el: hookScores[0].el, w: hookScores[0].w, kind: 'article' });
     if (hookScores.length > 1 && hookScores[0].w >= hookScores[1].w * 2.5) {
-      return { root: hookScores[0].el, kind: 'article' };
+      return widen({ el: hookScores[0].el, w: hookScores[0].w, kind: 'article' });
     }
 
     const main = document.querySelector('main, [role="main"]');
@@ -173,7 +194,43 @@ function listen(
     return null;
   }
 
-  function detectSiteMode() {
+  function opaqueLum(el: Element | null): number | null {
+    let node = el as HTMLElement | null;
+    while (node && node !== document.documentElement) {
+      const lum = luminance(getComputedStyle(node).backgroundColor);
+      if (lum !== null) return lum;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  function surfaceMode(root?: Element | null): 'dark' | 'light' | null {
+    const seen = new Set<Element>();
+    const candidates: Element[] = [];
+    if (root) candidates.push(root);
+    const extra = document.querySelectorAll(
+      '.kix-page-paginated, .kix-page, canvas.kix-canvas-tile-content, [data-content-editable-root]'
+    );
+    for (let i = 0; i < extra.length; i++) {
+      const el = extra[i];
+      if (el) candidates.push(el);
+    }
+    for (let i = 0; i < candidates.length; i++) {
+      const el = candidates[i];
+      if (!el || seen.has(el)) continue;
+      seen.add(el);
+      const r = el.getBoundingClientRect();
+      if (r.width < 160 || r.height < 60) continue;
+      const lum = opaqueLum(el);
+      if (lum === null) continue;
+      return lum < 0.45 ? 'dark' : 'light';
+    }
+    return null;
+  }
+
+  function detectSiteMode(root?: Element | null) {
+    const surface = surfaceMode(root);
+    if (surface) return surface;
     const html = document.documentElement;
     const body = document.body;
     const meta = document.querySelector('meta[name="color-scheme"]');
@@ -217,7 +274,180 @@ function listen(
     return rects[0];
   }
 
-  /* ── tooltip / flash: closed shadow so the page cannot clobber ids ── */
+  function glyphRect(el: Element): DOMRect {
+    const own = el.getBoundingClientRect();
+    if (own.width >= 4 && own.height >= 2) return own;
+    let node: Element | null = el.parentElement;
+    while (node && node !== document.documentElement) {
+      const r = node.getBoundingClientRect();
+      if (r.width >= 4 && r.height >= 4) return r;
+      node = node.parentElement;
+    }
+    return own;
+  }
+
+  let measureCtx: CanvasRenderingContext2D | null = null;
+  function textWidth(font: string, text: string): number {
+    if (!text) return 0;
+    if (!measureCtx) {
+      const canvas = document.createElement('canvas');
+      measureCtx = canvas.getContext('2d');
+    }
+    if (!measureCtx) return text.length;
+    measureCtx.font = font || '16px sans-serif';
+    return measureCtx.measureText(text).width;
+  }
+
+  function labelFont(el: Element): string {
+    const attr = el.getAttribute('data-font-css');
+    if (attr) return attr;
+    const cs = getComputedStyle(el);
+    return cs.font || ((cs.fontWeight || '400') + ' ' + (cs.fontSize || '16px') + ' ' + (cs.fontFamily || 'sans-serif'));
+  }
+
+  function sliceGlyph(el: Element, text: string, start: number, end: number): DOMRect {
+    const box = glyphRect(el);
+    const font = labelFont(el);
+    const sliced = Scan.sliceLineRect(box, text, start, end, function (s) {
+      return textWidth(font, s);
+    });
+    return new DOMRect(sliced.left, sliced.top, sliced.width, sliced.height);
+  }
+
+  function dropOverlays() {
+    overlayAnchors.length = 0;
+    if (overlayHost && overlayHost.parentNode) overlayHost.parentNode.removeChild(overlayHost);
+    overlayHost = null;
+  }
+
+  function ensureOverlayHost(): HTMLElement {
+    if (overlayHost && overlayHost.isConnected) return overlayHost;
+    dropOverlays();
+    document.querySelectorAll('[data-isslop="overlays"]').forEach(function (n) {
+      n.parentNode?.removeChild(n);
+    });
+    overlayHost = document.createElement('div');
+    overlayHost.setAttribute('data-isslop', 'overlays');
+    overlayHost.style.cssText = 'display: contents';
+    document.documentElement.appendChild(overlayHost);
+    return overlayHost;
+  }
+
+  function rangeBox(node: Text, start: number, end: number): DOMRect | null {
+    const len = (node.nodeValue || '').length;
+    if (!node.isConnected || start < 0 || end > len || start >= end) return null;
+    const range = document.createRange();
+    try {
+      range.setStart(node, start);
+      range.setEnd(node, end);
+    } catch {
+      return null;
+    }
+    return range.getBoundingClientRect();
+  }
+
+  function placeMarkBox(mark: HTMLElement, r: DOMRect | null): void {
+    if (!r || r.width < 2 || r.height < 2) {
+      mark.style.display = 'none';
+      return;
+    }
+    mark.style.left = Math.round(r.left) + 'px';
+    mark.style.top = Math.round(r.top) + 'px';
+    mark.style.width = Math.max(0, Math.round(r.width)) + 'px';
+    mark.style.height = Math.max(0, Math.round(r.height)) + 'px';
+    mark.style.display = 'block';
+  }
+
+  function placeOverlay(mark: HTMLElement, el: Element): void {
+    placeMarkBox(mark, glyphRect(el));
+  }
+
+  function placeAnchor(item: OverlayAnchor): void {
+    if (item.node) {
+      placeMarkBox(item.mark, rangeBox(item.node, item.start || 0, item.end || 0));
+      return;
+    }
+    if (item.el && item.label && item.start != null && item.end != null) {
+      placeMarkBox(item.mark, sliceGlyph(item.el, item.label, item.start, item.end));
+      return;
+    }
+    if (item.el) placeOverlay(item.mark, item.el);
+  }
+
+  function makeOverlayMark(rule: Scan.WrapRule, snippet: string, passive: boolean): HTMLElement {
+    const host = ensureOverlayHost();
+    const mark = document.createElement('div');
+    mark.id = Scan.allocMarkId();
+    mark.className = MARK_CLASS + ' slopspotter-overlay slopspotter-t' + rule.tier
+      + (passive ? ' slopspotter-overlay-pass' : '');
+    const seed = Number(String(mark.id).replace(/\D/g, '')) || 1;
+    mark.style.setProperty('--ss-j', (0.86 + Scan.jitter(seed) * 0.14).toFixed(3));
+    mark.style.setProperty('--ss-ang', (97 + Scan.jitter(seed + 3) * 4).toFixed(1) + 'deg');
+    mark.style.setProperty('--ss-r', (0.16 + Scan.jitter(seed + 7) * 0.1).toFixed(3) + 'em');
+    mark.style.borderRadius = 'var(--ss-r)';
+    mark.setAttribute('data-slop', rule.name + ': ' + rule.why);
+    mark.setAttribute('data-slop-id', rule.id || '');
+    mark.setAttribute('data-slop-name', rule.name);
+    mark.setAttribute('data-slop-why', rule.why);
+    mark.setAttribute('data-slop-tier', String(rule.tier));
+    mark.setAttribute('data-slop-snippet', snippet);
+    if (rule.try) mark.setAttribute('data-slop-try', rule.try);
+    host.appendChild(mark);
+    return mark;
+  }
+
+  function paintOverlay(
+    el: Element,
+    rule: Scan.WrapRule,
+    snippet: string,
+    start?: number,
+    end?: number,
+    label?: string
+  ): HTMLElement {
+    const mark = makeOverlayMark(rule, snippet, false);
+    overlayAnchors.push({ mark, el, start, end, label });
+    placeAnchor(overlayAnchors[overlayAnchors.length - 1] as OverlayAnchor);
+    return mark;
+  }
+
+  function paintRangeOverlay(
+    node: Text,
+    start: number,
+    end: number,
+    rule: Scan.WrapRule,
+    snippet: string
+  ): HTMLElement | null {
+    const mark = makeOverlayMark(rule, snippet, true);
+    overlayAnchors.push({ mark, node, start, end, passive: true });
+    placeAnchor(overlayAnchors[overlayAnchors.length - 1] as OverlayAnchor);
+    return mark;
+  }
+
+  function overlayAt(x: number, y: number): HTMLElement | null {
+    for (let i = overlayAnchors.length - 1; i >= 0; i--) {
+      const item = overlayAnchors[i];
+      if (!item || !item.mark.isConnected) continue;
+      const r = item.mark.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2 || item.mark.style.display === 'none') continue;
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return item.mark;
+    }
+    return null;
+  }
+
+  function relayoutOverlays(): void {
+    for (let i = overlayAnchors.length - 1; i >= 0; i--) {
+      const item = overlayAnchors[i];
+      if (!item) continue;
+      const live = item.mark.isConnected
+        && ((item.node && item.node.isConnected) || (item.el && item.el.isConnected));
+      if (!live) {
+        item.mark.remove();
+        overlayAnchors.splice(i, 1);
+        continue;
+      }
+      placeAnchor(item);
+    }
+  }
 
   function dropUi() {
     if (uiHost && uiHost.parentNode) uiHost.parentNode.removeChild(uiHost);
@@ -293,6 +523,7 @@ function listen(
     uiShadow.appendChild(flashBox);
 
     document.documentElement.appendChild(uiHost);
+    uiHost.classList.toggle(DARK_CLASS, document.documentElement.classList.contains(DARK_CLASS));
     tipEl = tip;
   }
 
@@ -320,7 +551,8 @@ function listen(
       if (tryEl) tryEl.textContent = suggestion;
     }
 
-    const marked = (mark.textContent || '').trim().split(/\s+/).filter(Boolean).length;
+    const marked = (mark.getAttribute('data-slop-snippet') || mark.textContent || '').trim();
+    const markedWords = marked.split(/\s+/).filter(Boolean).length;
     const ruleId = mark.getAttribute('data-slop-id');
     let times = 0;
     if (ruleId) {
@@ -330,7 +562,7 @@ function listen(
       }
     }
     if (metas[0]) {
-      metas[0].textContent = marked === 1 ? '1 flagged word' : marked + ' flagged words';
+      metas[0].textContent = markedWords === 1 ? '1 flagged word' : markedWords + ' flagged words';
     }
     if (metas[1]) {
       metas[1].textContent = times === 1 ? '1× on this page' : times + '× on this page';
@@ -386,11 +618,22 @@ function listen(
   });
 
   listen(document, 'pointermove', function (e: Event) {
-    const mark = markFromEvent(e);
-    if (!mark || !tipEl || tipEl.hidden) return;
     const pe = e as PointerEvent;
-    const rect = pickRect(mark, pe.clientX, pe.clientY);
-    if (rect) placeTip(tipEl, rect);
+    const fromDom = markFromEvent(e);
+    const mark = fromDom || overlayAt(pe.clientX, pe.clientY);
+    if (mark) {
+      if (!fromDom && !pinnedMark) showTipFor(mark);
+      if (!tipEl || tipEl.hidden) return;
+      const rect = pickRect(mark, pe.clientX, pe.clientY);
+      if (rect) placeTip(tipEl, rect);
+      return;
+    }
+    if (!pinnedMark && tipEl && !tipEl.hidden && !fromDom) {
+      const overlayTip = overlayAnchors.some(function (item) {
+        return item.passive && item.mark.isConnected;
+      });
+      if (overlayTip) hideTip();
+    }
   });
 
   listen(document, 'pointerout', function (e: Event) {
@@ -405,6 +648,7 @@ function listen(
   });
 
   listen(window, 'scroll', function () {
+    relayoutOverlays();
     layoutFlash();
     if (pinnedMark) {
       showTipFor(pinnedMark);
@@ -413,6 +657,7 @@ function listen(
     hideTip();
   }, true);
   listen(window, 'resize', function () {
+    relayoutOverlays();
     layoutFlash();
     hideTip();
   });
@@ -421,6 +666,7 @@ function listen(
     pinnedMark = null;
     clearFlash();
     dropUi();
+    dropOverlays();
     document.documentElement.classList.remove(
       DARK_CLASS, 'slopspotter-hide-t1', 'slopspotter-hide-t2', 'slopspotter-hide-t3'
     );
@@ -438,7 +684,8 @@ function listen(
   function collectFindings() {
     const findings: import('./types').Finding[] = [];
     document.querySelectorAll('.' + MARK_CLASS).forEach(function (mark) {
-      const text = (mark.textContent || '').replace(/\s+/g, ' ').trim();
+      const text = (mark.getAttribute('data-slop-snippet') || mark.textContent || '')
+        .replace(/\s+/g, ' ').trim();
       const tier = Number(mark.getAttribute('data-slop-tier') || 1);
       findings.push({
         id: mark.id,
@@ -494,8 +741,15 @@ function listen(
     if (!MARK_ID_RE.test(id || '')) return false;
     const mark = document.getElementById(id);
     if (!mark || !mark.classList || !mark.classList.contains(MARK_CLASS)) return false;
+    const anchor = overlayAnchors.find(function (item) { return item.mark === mark; });
+    const target = (anchor && anchor.el && anchor.el.isConnected)
+      ? anchor.el
+      : (anchor && anchor.node && anchor.node.parentElement)
+        ? anchor.node.parentElement
+        : mark;
     pinnedMark = mark;
-    mark.scrollIntoView({ block: 'center', behavior: 'auto' });
+    target.scrollIntoView({ block: 'center', behavior: 'auto' });
+    relayoutOverlays();
     showTipFor(mark);
     clearFlash();
     flashMark = mark;
@@ -513,6 +767,7 @@ function listen(
       : scheme === 'light' ? false
       : pageIsDark();
     document.documentElement.classList.toggle(DARK_CLASS, dark);
+    if (uiHost) uiHost.classList.toggle(DARK_CLASS, dark);
     return dark;
   }
 
@@ -529,24 +784,19 @@ function listen(
     }
   }
 
-  function scanPage(scope: string, scheme?: string): import('./types').PageSummary {
+  function scanPage(scope: string): import('./types').PageSummary {
     pinnedMark = null;
     unrenderedCache = Scan.createCache();
     clearHighlights();
 
-    const use = (scheme === 'dark' || scheme === 'light') ? scheme : detectSiteMode();
-    const onDark = applyInkScheme(use);
-
     const wantArticle = scope !== 'page';
     const picked = wantArticle ? pickContentRoot() : { root: document.body, kind: 'body' };
     const root = (picked.root && picked.root.nodeType === 1) ? picked.root : document.body;
+    const onDark = applyInkScheme(detectSiteMode(root));
 
     const htmlLang = document.documentElement.lang
       || (document.querySelector('meta[http-equiv="content-language"]') as HTMLMetaElement | null)?.content
       || '';
-    const sample = root instanceof HTMLElement && root.innerText ? root.innerText.slice(0, 4000) : '';
-    const pack = detectPack(htmlLang, sample);
-    const rules = pack && pack.rules;
     const empty = {
       score: 0,
       label: 'Reads human',
@@ -559,43 +809,117 @@ function listen(
       scope: (wantArticle ? 'article' : 'page') as 'article' | 'page',
       root: picked.kind || 'body'
     };
-    if (!engine || !rules) return empty;
 
     const nodes = Scan.collectTextNodes(root, { stripChrome: wantArticle, cache: unrenderedCache });
+    const ariaLabels = Scan.collectAriaText(root, { stripChrome: wantArticle, cache: unrenderedCache });
+    const runs = Scan.groupTextRuns(nodes).map(function (group) {
+      return Scan.joinTextRun(group);
+    });
     let scannedText = '';
-    const nodeMatches: { node: Text; text: string; matches: import('./types').Match[] }[] = [];
     const t0 = performance.now();
     let scannedChars = 0;
 
-    for (const node of nodes) {
+    for (let i = 0; i < runs.length; i++) {
+      const run = runs[i];
+      if (!run) continue;
       if (scannedChars >= MAX_SCAN_CHARS) break;
       if (performance.now() - t0 > MAX_SCAN_MS) break;
-      const text = node.nodeValue || '';
-      scannedChars += text.length;
-      scannedText += (scannedText ? ' ' : '') + text;
-      const matches = engine.mergeOverlaps(engine.findMatches(text, rules));
-      nodeMatches.push({ node, text, matches });
+      scannedChars += run.text.length;
+      scannedText += (scannedText ? '\n' : '') + run.text;
     }
+
+    for (const item of ariaLabels) {
+      if (scannedChars >= MAX_SCAN_CHARS) break;
+      scannedChars += item.text.length;
+      scannedText += (scannedText ? '\n' : '') + item.text;
+    }
+
+    const pack = detectPack(htmlLang, scannedText);
+    const rules = pack && pack.rules;
+    if (!engine || !rules) return empty;
 
     const wordCount = engine.countWords(scannedText);
     const dashCount = engine.countEmDashes(scannedText, pack);
     const flagDashes = engine.emDashShouldFlag(dashCount, wordCount, pack);
 
     const allMatches: import('./types').Match[] = [];
-    for (const item of nodeMatches) {
-      let matches = item.matches;
+    const pendingFindings: import('./types').Finding[] = [];
+
+    function takeMatches(text: string): import('./types').Match[] {
+      let matches = engine.mergeOverlaps(engine.findMatches(text, rules));
       if (flagDashes) {
-        matches = engine.mergeOverlaps(matches.concat(engine.findEmDashMatches(item.text, pack)));
+        matches = engine.mergeOverlaps(matches.concat(engine.findEmDashMatches(text, pack)));
       }
-      Scan.applyMatches(item.node, matches);
-      allMatches.push(...matches);
+      return matches;
     }
 
+    function rememberFindings(text: string, matches: import('./types').Match[]): void {
+      for (let i = 0; i < matches.length; i++) {
+        const m = matches[i];
+        if (!m) continue;
+        const snippet = text.slice(m.start, m.end).replace(/\s+/g, ' ').trim();
+        pendingFindings.push({
+          id: '',
+          name: m.rule.name,
+          snippet: snippet.length > 52 ? snippet.slice(0, 51) + '…' : snippet,
+          tier: m.rule.tier
+        });
+      }
+    }
+
+    for (let i = 0; i < runs.length; i++) {
+      const run = runs[i];
+      if (!run || !run.text) continue;
+      const matches = takeMatches(run.text);
+      allMatches.push(...matches);
+      rememberFindings(run.text, matches);
+      const byNode = new Map<Text, Array<{ start: number; end: number; rule: Scan.WrapRule; snippet: string }>>();
+      for (let j = 0; j < matches.length; j++) {
+        const m = matches[j];
+        if (!m) continue;
+        const snippet = run.text.slice(m.start, m.end).replace(/\s+/g, ' ').trim();
+        const bits = Scan.projectSpan(run.parts, m.start, m.end);
+        for (let k = 0; k < bits.length; k++) {
+          const bit = bits[k];
+          if (!bit) continue;
+          let list = byNode.get(bit.node);
+          if (!list) {
+            list = [];
+            byNode.set(bit.node, list);
+          }
+          list.push({ start: bit.start, end: bit.end, rule: m.rule, snippet });
+        }
+      }
+      byNode.forEach(function (list, node) {
+        if (Scan.inContentEditable(node)) {
+          for (let n = 0; n < list.length; n++) {
+            const hit = list[n];
+            if (!hit) continue;
+            paintRangeOverlay(node, hit.start, hit.end, hit.rule, hit.snippet);
+          }
+          return;
+        }
+        Scan.applyMatches(node, list);
+      });
+    }
+    for (const item of ariaLabels) {
+      const matches = takeMatches(item.text);
+      allMatches.push(...matches);
+      rememberFindings(item.text, matches);
+      for (let i = 0; i < matches.length; i++) {
+        const m = matches[i];
+        if (!m) continue;
+        const snippet = item.text.slice(m.start, m.end).replace(/\s+/g, ' ').trim();
+        paintOverlay(item.el, m.rule, snippet || item.text, m.start, m.end, item.text);
+      }
+    }
+
+    const marked = collectFindings();
     const summary: import('./types').PageSummary = {
       ...engine.summarize(allMatches, wordCount),
       onDark,
       scheme: onDark ? 'dark' : 'light',
-      findings: collectFindings(),
+      findings: marked.length ? marked : pendingFindings,
       scope: wantArticle ? 'article' : 'page',
       root: picked.kind || 'body'
     };
@@ -619,8 +943,7 @@ function listen(
     }
     if (data.type === 'SLOP_SCAN') {
       const scope = data.scope === 'page' ? 'page' : 'article';
-      const scheme = data.scheme === 'dark' || data.scheme === 'light' ? data.scheme : undefined;
-      sendResponse(scanPage(scope, scheme));
+      sendResponse(scanPage(scope));
       return;
     }
     if (data.type === 'SLOP_SCHEME') {
@@ -659,6 +982,7 @@ function listen(
     pinnedMark = null;
     clearFlash();
     dropUi();
+    dropOverlays();
     bound.forEach(function (item) {
       item[0].removeEventListener(item[1], item[2], item[3]);
     });
