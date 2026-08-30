@@ -67,8 +67,11 @@ function packZip(verStr) {
   });
   if (missing.length) throw new Error('missing built files: ' + missing.join(', '));
 
+  // Zip lives in release/, not dist/. `npm run build` rmSyncs dist/ every time.
+  const outDir = path.join(root, 'release');
+  fs.mkdirSync(outDir, { recursive: true });
   const zipName = 'islop-' + verStr + '.zip';
-  const zipPath = path.join(dist, zipName);
+  const zipPath = path.join(outDir, zipName);
   if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
 
   const zipped = spawnSync('zip', ['-q', '-X', zipPath].concat(EXT_FILES), {

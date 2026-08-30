@@ -35,6 +35,6 @@ jobs:
         run: |
           ver=$(node -p "require('./manifest.json').version")
           gh release create "$GITHUB_REF_NAME" \
-            "dist/islop-${ver}.zip" \
+            "release/islop-${ver}.zip" \
             --title "isSlop ${ver}" \
             --generate-notes

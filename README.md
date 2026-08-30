@@ -139,7 +139,7 @@ Version lives in one place: `manifest.json` `"version"`. Chrome only accepts `x.
 
 ```
 npm run build           # emit dist/ for Load unpacked
-npm run release         # zip current version → dist/islop-x.y.z.zip
+npm run release         # zip current version → release/islop-x.y.z.zip
 npm run release:patch   # bump patch, retest, zip
 npm run release:minor
 npm run release:major
@@ -162,7 +162,7 @@ Pushing the tag runs `.github/workflows/release.yml`: it fails if the tag and ma
 
 ### 3. Chrome Web Store (manual)
 
-Download that zip from the GitHub Release (or use the local `dist/` file).
+Download that zip from the GitHub Release (or use the local `release/` file).
 
 1. One-time: [Chrome Web Store developer account](https://chrome.google.com/webstore/devconsole) ($5).
 2. **New item** (or **Package → Upload new package**). Upload `islop-x.y.z.zip`. Each upload must be a higher version than the last.
