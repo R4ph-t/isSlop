@@ -228,11 +228,8 @@ h1 {
   display: block;
 }
 
-.info-kicker {
-  font: 700 10.5px/1 var(--ss-mono);
-  letter-spacing: 0.13em;
-  color: var(--ss-faint);
-  margin-bottom: 5px;
+.info-kicker-next {
+  margin-top: 10px;
 }
 
 .info-ver {
